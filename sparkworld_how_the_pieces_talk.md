@@ -110,6 +110,7 @@ The **Storyteller** turns this into a flowing narrative that players can read li
 * **[📖 The Storyteller](storyteller.md)** – How the Storyteller transforms raw events into compelling narrative
 * **[🧩 Mission Meetings](mission_meeting.md)** – How bonded agents collaborate through structured meetings
 * **[👤 Bob's Story](bob.md)** – The complete tale of the mysterious wanderer
+* **[🌱 Shard‑Sower](shard_sower.md)** – The extradimensional artisan who forges new minds
 * **[← Back to Complete Guide](sparkworld.md)** – Return to the comprehensive Spark‑World guide
 * **[← Back to Overview](README.md)** – Return to the main project page
 

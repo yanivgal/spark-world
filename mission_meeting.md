@@ -94,5 +94,6 @@ What happens when bonded agents can't agree on mission strategy? This is the bea
 * **[👤 Bob's Story](bob.md)** – The complete tale of the mysterious wanderer
 * **[📖 The Storyteller](storyteller.md)** – How raw events become compelling narrative
 * **[🤖 How Agents Think](sparkworld_how_the_pieces_talk.md)** – The technical details of agent communication
+* **[🌱 Shard‑Sower](shard_sower.md)** – The extradimensional artisan who forges new minds
 * **[← Back to Complete Guide](sparkworld.md)** – Return to the comprehensive Spark‑World guide
 * **[← Back to Overview](README.md)** – Return to the main project page

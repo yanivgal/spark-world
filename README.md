@@ -42,6 +42,7 @@ streamlit run app.py              # (optional UI)
 * **[📖 The Storyteller](storyteller.md)** – How the narrative emerges from raw events
 * **[🧩 Mission Meetings](mission_meeting.md)** – How bonded agents collaborate on shared goals
 * **[👤 Bob's Story](bob.md)** – The mysterious wanderer who holds the power to give life
+* **[🌱 Shard‑Sower](shard_sower.md)** – The extradimensional artisan who forges new minds
 
 ---
 

@@ -150,4 +150,5 @@ Try one tick, watch a flower outsmart a goblin raider, and see if you can resist
 * **[📖 The Storyteller](storyteller.md)** – How raw events become compelling narrative
 * **[🧩 Mission Meetings](mission_meeting.md)** – The collaborative planning system for bonded agents
 * **[👤 Bob's Story](bob.md)** – The complete tale of the mysterious wanderer
+* **[🌱 Shard‑Sower](shard_sower.md)** – The extradimensional artisan who forges new minds
 * **[← Back to Overview](README.md)** – Return to the main project page

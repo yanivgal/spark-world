@@ -6,6 +6,8 @@ At the start of the game, Bob holds a certain number of Sparks. Each turn, if he
 He cannot use them. He cannot bond. He cannot spawn.\
 Spark flows through him — not for him.
 
+**Important:** If Bob runs out of Sparks (reaches zero), he simply ignores all requests until the next tick when he gains more Sparks. His generosity is finite but renewable.
+
 Bob never offers Spark on his own.\
 Agents must ask — using the special message:
 

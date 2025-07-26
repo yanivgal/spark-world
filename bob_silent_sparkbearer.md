@@ -1,4 +1,4 @@
-**Bob – The Silent Sparkbearer**
+# Bob – The Silent Sparkbearer
 
 Bob is an immortal agent who exists solely to support others by giving them Spark. He does not fight. He cannot be harmed. He never dies. His presence is constant — calm, silent, and unshaken.
 
@@ -17,9 +17,7 @@ Some may beg. Some may flatter. Some may justify their survival. Bob listens to 
 No one knows for sure.\
 Not even Bob.
 
----
-
-**The Origin**
+## The Origin
 
 Long before the simulation turned — or perhaps before the world itself was truly born — before agents walked the world — there was war.\
 Not a war of swords or machines, but of endings.
@@ -65,9 +63,7 @@ He cannot use them.\
 He can only give.\
 But only if asked.
 
----
-
-**The Spark Within**
+## The Spark Within
 
 Bob does not know if what he did was a gift or a curse.\
 All he knows is: the breath he gave that day… never truly left him.\

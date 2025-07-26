@@ -27,7 +27,7 @@ Each packet includes:
 
 ### 2. Agent Responses — Thoughtful, Structured, and Logged
 
-Each agent submits **one Action Message per tick**, following this strict structure. **Note:** Bond requests are asynchronous - the target agent receives the request in the next tick and can choose to accept or decline.
+Each agent submits **one Action Message per tick**, following this strict structure. **Note:** Bond requests are two-step - the target agent receives the request in the next tick and can choose to accept or decline.
 
 ```json
 {

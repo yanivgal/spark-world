@@ -1,5 +1,11 @@
 # 🌌  Spark‑World
 
+*The complete guide to Spark‑World's mechanics, systems, and emergent storytelling.*
+
+**[← Back to Overview](README.md)**
+
+---
+
 **What is Spark‑World?**
 
 Imagine a silent void where nothing exists until two minds brush against each other and a single pulse of energy, a Spark that flares into being.
@@ -134,4 +140,14 @@ The entire simulation lives in a few hundred lines: swap prompts, bolt on events
 * Zero graphics, full imagination
 No pixel budget needed—everything unfolds in prose you’ll actually want to read (and maybe copy into a short story anthology).
 
-Try one tick, watch a flower outsmart a goblin raider, and see if you can resist clicking “Next Turn.”
+Try one tick, watch a flower outsmart a goblin raider, and see if you can resist clicking "Next Turn."
+
+---
+
+## Explore Further
+
+* **[🤖 How Agents Think](sparkworld_how_the_pieces_talk.md)** – The technical details of agent communication and decision-making
+* **[📖 The Storyteller](storyteller.md)** – How raw events become compelling narrative
+* **[🧩 Mission Meetings](mission_meeting.md)** – The collaborative planning system for bonded agents
+* **[👤 Bob's Story](bob.md)** – The complete tale of the mysterious wanderer
+* **[← Back to Overview](README.md)** – Return to the main project page

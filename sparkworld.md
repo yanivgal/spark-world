@@ -1,6 +1,6 @@
 # 🌌  Spark‑World
 
-What is Spark‑World?
+**What is Spark‑World?**
 
 Imagine a silent void where nothing exists until two minds brush against each other and a single pulse of energy, a Spark that flares into being.
 

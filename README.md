@@ -14,6 +14,16 @@ No graphics, just pure text… yet alliances form, betrayals sting, and micro‑
 
 ---
 
+## The Characters of Spark‑World
+
+**Bob** – The mysterious wanderer who holds the power to give life. When agents are desperate, they can beg Bob for Sparks, but his generosity is finite and unpredictable.
+
+**The Storyteller** – The voice that transforms raw events into compelling narrative. Every Storyteller has their own personality—some tell epic tales like ancient bards, others whisper gentle stories of friendship and growth.
+
+**The Shard‑Sower** – An extradimensional artisan who forges new minds. Every time you start a new world, the Shard‑Sower creates a unique cast of agents, each with their own personality, backstory, and special abilities. No two worlds will ever have the same characters.
+
+---
+
 ## Why should I care?
 
 * **Emergent drama** – personalities collide in a rules‑light economy where every decision matters

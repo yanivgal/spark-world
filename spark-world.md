@@ -13,7 +13,7 @@ There are no tiles to move and no hit-points to track. Only conversation. Each t
 Over time, simple numeric rules give rise to rivalries, unlikely friendships, and the occasional extinction event—all written in words rather than pixels.
 
 
-### The Cast of Spark‑World
+## The Cast of Spark‑World
 
 | Entity          | One‑line essence                                                                                               | Why they matter                                                           |
 | --------------- | -------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
@@ -26,7 +26,7 @@ Over time, simple numeric rules give rise to rivalries, unlikely friendships, an
 
 Every tick these characters dance: Bonds mint Sparks, Agents act, Bob judges, the Storyteller records, and Shard‑Sower stands ready to seed new minds when old ones flicker out.
 
-### One Turn (Tick) in Six Beats
+## One Turn (Tick) in Six Beats
 
 > *A hush, a hum, and then the world moves...*
 
@@ -41,7 +41,7 @@ Every tick these characters dance: Bonds mint Sparks, Agents act, Bob judges, th
 
 A tick can last a second or a minute, but this rhythm—mint, mercy, action, payout, cost, story—never changes.
 
-### What an Agent Can Do (Single‑Message Rule)
+## What an Agent Can Do (Single‑Message Rule)
 
 In each tick an agent may say **one—and only one—of these magic words**:
 
@@ -55,7 +55,7 @@ In each tick an agent may say **one—and only one—of these magic words**:
 
 No macros, no multi‑actions: choose one verb, send it, live (or dissolve) with the consequences.
 
-### Sparks, Survival, and Strength
+## Sparks, Survival, and Strength
 
 *The universe writes its laws in simple arithmetic.*
 
@@ -71,7 +71,7 @@ No macros, no multi‑actions: choose one verb, send it, live (or dissolve) with
 
 These numbers are the heartbeat of Spark‑World—easy to remember, ruthless in practice.
 
-### Four‑Tick Walk‑Through (Plain‑Words Story)
+## Four‑Tick Walk‑Through (Plain‑Words Story)
 
 | Tick                                   | What the Engine Does                                                                                                                                                                                                                                                                                                                                                    | Storyteller says (short & clear)                                                                                                          |
 | -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
@@ -83,7 +83,7 @@ These numbers are the heartbeat of Spark‑World—easy to remember, ruthless in
 
 **Take‑away:** in just four turns we saw a bond form, a mission bloom, two failed raids, a Bob donation, and Sparks shifting every tick—all through simple messages and the six‑beat loop.
 
-### 🌟 Why Spark‑World Pulls You In
+## 🌟 Why Spark‑World Pulls You In
 * Stories that write themselves
 A single line—“bond”, “raid”, “beg Bob”—can blossom into rivalries, alliances, or tragic vanishings, all narrated moments later by an LLM bard.
 

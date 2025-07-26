@@ -1,4 +1,10 @@
-## 🧩 Mission Meetings – Collaborative Planning Inside Each Tick
+# 🧩 Mission Meetings – Collaborative Planning Inside Each Tick
+
+*How bonded agents collaborate on shared goals through structured meetings.*
+
+**[← Back to Complete Guide](sparkworld.md)** | **[← Back to Overview](README.md)**
+
+---
 
 ### What is a Mission Meeting?
 
@@ -80,3 +86,13 @@ This recurring meeting flow brings life to cooperation:
 ### Mission Disagreements
 
 What happens when bonded agents can't agree on mission strategy? This is the beauty of the simulation - we get to observe how different personalities navigate conflict and cooperation. The agents must work through their disagreements through dialogue, and their success or failure becomes part of the emergent story. There's no forced consensus - the outcome depends entirely on the agents' personalities and communication skills.
+
+---
+
+## Explore Further
+
+* **[👤 Bob's Story](bob.md)** – The complete tale of the mysterious wanderer
+* **[📖 The Storyteller](storyteller.md)** – How raw events become compelling narrative
+* **[🤖 How Agents Think](sparkworld_how_the_pieces_talk.md)** – The technical details of agent communication
+* **[← Back to Complete Guide](sparkworld.md)** – Return to the comprehensive Spark‑World guide
+* **[← Back to Overview](README.md)** – Return to the main project page

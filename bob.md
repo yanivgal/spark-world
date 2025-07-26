@@ -1,4 +1,10 @@
-# Bob – The Silent Sparkbearer
+# 👤 Bob – The Silent Sparkbearer
+
+*The complete tale of the mysterious wanderer who holds the power to give life.*
+
+**[← Back to Complete Guide](sparkworld.md)** | **[← Back to Overview](README.md)**
+
+---
 
 Bob is an immortal agent who exists solely to support others by giving them Spark. He does not fight. He cannot be harmed. He never dies. His presence is constant — calm, silent, and unshaken.
 
@@ -96,4 +102,14 @@ Maybe it’s all he has left of being human.
 And so he waits.\
 Silent. Still. Holding the Spark,\
 Until someone needs it more than he ever could.
+
+---
+
+## Explore Further
+
+* **[🧩 Mission Meetings](mission_meeting.md)** – How bonded agents collaborate through structured meetings
+* **[📖 The Storyteller](storyteller.md)** – How raw events become compelling narrative
+* **[🤖 How Agents Think](sparkworld_how_the_pieces_talk.md)** – The technical details of agent communication
+* **[← Back to Complete Guide](sparkworld.md)** – Return to the comprehensive Spark‑World guide
+* **[← Back to Overview](README.md)** – Return to the main project page
 

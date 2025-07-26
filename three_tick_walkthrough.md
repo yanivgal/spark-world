@@ -1,0 +1,54 @@
+# Three‑Tick WalkThrough (Plain‑Words Story)
+
+| Tick | Observation Packets | Agent Actions | Engine Processing | Storyteller |
+|------|-------------------|---------------|-------------------|-------------|
+| **0 – Birth** | *(No observation packets - agents just created)* | Shard‑Sower creates three fresh agents (5⚡ each):<br>• **Sir Pounce‑a‑Lot** – proud saber‑cat.<br>• **Blossom Echo** – gentle weather‑dandelion.<br>• **Grudge** – short‑tempered goblin raider. | World Engine initializes | "A knightly cat, a whispering flower, and a scowling goblin stepped into the newborn world."                                              |
+| **1 – First Moves** | **All agents**: "You awaken in a newborn world. Three other minds flicker nearby: a proud saber-cat, a gentle weather-dandelion, and a short-tempered goblin raider." | • Blossom sends `bond Sir`<br>• Sir sends `bond Blossom`<br>• Grudge sends `raid Sir` | Process raid: Grudge (age0+5⚡=5) vs Sir (age0+5⚡=5)<br>P(success) = 5/(5+5) = 0.5 → **fail**<br>Sir steals 1⚡ from Grudge<br>Mint = 0 (no bonds)<br>Upkeep: all lose 1⚡ | "The flower reached out to the cat, and the cat reached back—but their hands had not yet touched. Grudge lunged—but the knight swatted him back and stole a Spark."  |
+| **2 – Pre-tick: Mission Meeting Start** | *(No observation packets - meeting phase)* | **Mission Meeting begins** (Blossom & Sir only)<br>• Blossom introduces mission: "Gather 10 Sparks together" | *(Meeting phase - no engine processing)* | "The flower and cat gather to plan their Spark-gathering strategy."                                        |
+| **2 – Pre-tick: Agent Opinions** | *(No observation packets - meeting phase)* | **Mission Meeting continues** (Blossom & Sir only)<br>• Sir suggests: "I can raid Grudge to steal Sparks"<br>• Blossom suggests: "I'll ask Bob for help while you raid" | *(Meeting phase - no engine processing)* | "The knight offers to raid while the flower volunteers to beg Bob for aid."                                        |
+| **2 – Pre-tick: Leader Assigns Tasks** | *(No observation packets - meeting phase)* | **Mission Meeting concludes** (Blossom & Sir only)<br>• Blossom assigns: "Sir raids Grudge, I ask Bob for help"<br>• Tasks recorded for next tick | *(Meeting phase - no engine processing)* | "The flower assigns roles: the knight to raid, herself to beg Bob."                                        |
+| **2 – Main Tick: All Agents Act** | **Blossom & Sir**: "Your bond request was accepted! You are now bonded. Blossom is the mission leader. Mission: 'Gather 10 Sparks together.' You gained 2 Sparks from bonding. Your assigned tasks: Sir raids Grudge, Blossom asks Bob for help."<br>**Grudge**: "Your raid failed. You lost 1 Spark to Sir. You are alone in the world." | • Grudge sends `request_spark I am desperate`<br>• Sir sends `raid Grudge`<br>• Blossom sends `request_spark Help us gather Sparks` | Process bond requests → bond forms<br>Process raid: Sir (age2+4⚡=6) vs Grudge (age2+4⚡=6)<br>P(success) = 6/(6+6) = 0.5 → **fail**<br>Grudge steals 1⚡ from Sir<br>Bob processes Blossom's request → grants 3⚡<br>Mint: bond of 2 mints 2⚡ → Blossom<br>Upkeep: all lose 1⚡ | "The flower and cat clasped paws, planning their Spark hunt. The knight charged the goblin but was repelled. Meanwhile, Bob heard the flower's plea and dropped three Sparks into her petals."                                        |
+| **3 – Pre-tick: Mission Meeting Start** | *(No observation packets - meeting phase)* | **Mission Meeting begins** (Blossom & Sir only)<br>• Blossom reports: "We have 8 Sparks total, need 2 more!" | *(Meeting phase - no engine processing)* | "The flower and cat gather to assess their Spark-gathering progress."                                        |
+| **3 – Pre-tick: Agent Opinions** | *(No observation packets - meeting phase)* | **Mission Meeting continues** (Blossom & Sir only)<br>• Sir suggests: "Let's both ask Bob for the final 2 Sparks"<br>• Blossom suggests: "Or we could try raiding Grudge again" | *(Meeting phase - no engine processing)* | "The knight suggests diplomacy while the flower considers another raid."                                        |
+| **3 – Pre-tick: Leader Assigns Tasks** | *(No observation packets - meeting phase)* | **Mission Meeting concludes** (Blossom & Sir only)<br>• Blossom assigns: "Both ask Bob for 1 Spark each"<br>• Tasks recorded for next tick | *(Meeting phase - no engine processing)* | "The flower decides on diplomacy: both will ask Bob for the final Sparks."                                        |
+| **3 – Main Tick: All Agents Act** | **Blossom & Sir**: "Your raid failed. Grudge stole 1 Spark from Sir. Bob granted your request! You received 3 Sparks. Mission progress: 8/10 Sparks gathered. Your assigned tasks: Both ask Bob for 1 Spark each."<br>**Grudge**: "Your raid defense succeeded! You stole 1 Spark from Sir. Bob granted your request! You received 3 Sparks." | • Grudge sends `raid Blossom`<br>• Sir sends `request_spark Need 1 more for mission`<br>• Blossom sends `request_spark Need 1 more for mission` | Process raid: Grudge (age3+5⚡=8) vs Blossom (age3+5⚡=8)<br>P(success) = 8/(8+8) = 0.5 → **fail**<br>Blossom steals 1⚡ from Grudge<br>Bob processes both requests → grants 1⚡ each<br>Mint: bond of 2 mints 2⚡ → Sir<br>Upkeep: all lose 1⚡ | "The goblin charged the flower but was repelled again. Meanwhile, both flower and knight pleaded with Bob, who granted each a single Spark. The mission was nearly complete!" |
+
+**Take‑away:** in just three turns we saw a bond form, a collaborative mission to gather 10 Sparks, strategic planning through mission meetings, failed raids, Bob donations, and mission progress—all through simple messages and the six‑beat loop. 
+
+## The Heist Master Storyteller  
+Meet Vincent "Vinnie" Chase, a former Hollywood screenwriter who sees every Spark-World event as a cinematic sequence. He lives in a dim apartment above an old movie theater, surrounded by film posters and whiskey bottles. Vinnie speaks in rapid-fire dialogue peppered with movie references, his hands constantly gesturing as if storyboarding in real-time. When he narrates, he frames everything as a heist film - bond formations become "getting the band together" montages, failed raids are "third act complications," and mission completions are triumphant underdog victories. He's cynical about human nature but romantic about redemption, which is why his stories always end with the bad guy getting one more chance.  
+
+And this is his story:
+
+# The Spark Heist
+
+## The Void and the First Alliance
+The world began with three souls materializing in the void — a knightly cat with silver fur and proud bearing, a gentle flower whose petals whispered secrets to the wind, and a scowling goblin whose eyes burned with desperate hunger. They were strangers, yet destiny had woven their fates together in ways none could foresee.
+
+Sir Pounce-a-Lot, the saber-cat, stood tall despite his newborn confusion. His instincts screamed at him to find allies, to build something greater than himself. Nearby, Blossom Echo swayed gently, her weather-dandelion form catching invisible currents. She felt the same pull — not toward violence, but toward connection. And then there was Grudge, the goblin raider, whose first thought was to take what he needed by force.
+
+The flower reached out first. "Sir," she whispered, her voice like wind through leaves, "we could be stronger together." The knight's eyes narrowed, then softened. He extended his paw. "Blossom," he said, "I accept your offer of alliance." Their bond request hung in the air like a promise.
+
+But Grudge saw only opportunity. While the others planned their partnership, he lunged at the knight, claws extended, hoping to steal the precious Sparks that kept them alive. The attack was desperate, reckless — and it failed spectacularly. Sir Pounce-a-Lot's reflexes were honed by instinct, and he not only dodged the assault but turned it back on the goblin, stealing a Spark of his own. Grudge stumbled back, his plan in ruins, his hunger growing.
+
+## The Spark Quest
+The flower and cat's bond solidified like lightning striking twice. Suddenly, they weren't just two individuals — they were a team with a mission. The universe itself seemed to recognize their partnership, granting them a quest that would test everything they had: gather ten Sparks together, a fortune that could change their world.
+
+In their first strategy session, the atmosphere crackled with possibility. "I can raid Grudge," Sir Pounce-a-Lot declared, his voice steady with knightly resolve. "Steal what we need directly." Blossom's petals rustled thoughtfully. "And I'll ask Bob for help while you raid," she countered. "We need multiple approaches." The goblin, excluded from their planning, could only watch from the shadows, his desperation mounting.
+
+The execution was a masterpiece of coordination. As Sir charged Grudge with calculated precision, Blossom sent her plea into the void, calling on Bob — the mysterious wanderer who sometimes granted mercy to the desperate. The knight's attack was perfectly timed, but Grudge, despite his earlier failure, had learned. The battle was a deadlock, strength against strength, and when the dust settled, Grudge had stolen a Spark back from Sir.
+
+But Blossom's gamble paid off. Bob heard her plea and dropped three precious Sparks into her waiting petals. The mission was progressing, but they were still two Sparks short of their goal.
+
+## Final Moves and Redemption
+Their second meeting was electric with tension and possibility. "We have eight Sparks," Blossom reported, her voice trembling with excitement. "We need just two more!" Sir's eyes gleamed with strategic fire. "Let's both ask Bob for the final Sparks," he suggested. "Diplomacy over violence." Blossom considered another raid, but the knight's wisdom prevailed.
+
+The final push was a symphony of desperation and hope. Grudge, still smarting from his losses, launched one more desperate attack on Blossom, but she had grown stronger, wiser. She repelled him easily, stealing another Spark in the process. Meanwhile, both flower and knight sent their pleas to Bob, and the mysterious benefactor granted each a single Spark.
+
+The mission was nearly complete. Ten Sparks gathered through strategy, cooperation, and the kind of trust that only forms in the crucible of shared purpose. What had started as three strangers in a void had become something extraordinary — a team that had proven that even the most impossible goals could be achieved through unity.
+
+## The Legend
+The story of the Spark Heist became legend, not because of the Sparks themselves, but because of what they represented: the power of unlikely alliances, the strength found in cooperation, and the truth that even the most desperate souls could find redemption through shared purpose.
+
+
+

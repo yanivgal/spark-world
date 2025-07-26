@@ -1,4 +1,10 @@
-## How the Pieces Talk — A Plain‑Language Tour
+# 🤖 How the Pieces Talk — A Plain‑Language Tour
+
+*The technical details of how agents communicate and make decisions in Spark‑World.*
+
+**[← Back to Complete Guide](sparkworld.md)** | **[← Back to Overview](README.md)**
+
+---
 
 **Spark‑World** runs on turns — called *ticks* — where every event, thought, and decision is processed in order. Each tick is a heartbeat of the world. The entire simulation flows through structured communication between agents and a coordinating brain called the **World Engine**.
 
@@ -95,5 +101,15 @@ Once all tick activity is complete, the World Engine sends the entire tick log t
 
 The **Storyteller** turns this into a flowing narrative that players can read like a story. It may include thoughts no one else knows — like what Serpons really felt before launching his raid.
 
-> This is the soul of Spark‑World’s emergent storytelling.
+> This is the soul of Spark‑World's emergent storytelling.
+
+---
+
+## Explore Further
+
+* **[📖 The Storyteller](storyteller.md)** – How the Storyteller transforms raw events into compelling narrative
+* **[🧩 Mission Meetings](mission_meeting.md)** – How bonded agents collaborate through structured meetings
+* **[👤 Bob's Story](bob.md)** – The complete tale of the mysterious wanderer
+* **[← Back to Complete Guide](sparkworld.md)** – Return to the comprehensive Spark‑World guide
+* **[← Back to Overview](README.md)** – Return to the main project page
 

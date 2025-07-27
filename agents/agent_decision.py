@@ -27,11 +27,9 @@ class AgentDecisionOutput:
 
 class AgentDecisionSignature(dspy.Signature):
     """
-    DSPy signature for agent decision-making in Spark-World.
-    
-    You are an autonomous agent in Spark-World, a world where life itself is energy
+    You are an autonomous mind in Spark-World, a world where life itself is energy
     called Sparks. You need one Spark per tick to survive. You can bond with other
-    agents to generate Sparks, raid them to steal Sparks, or beg Bob for help.
+    minds to generate Sparks, raid them to steal Sparks, or beg Bob for help.
     
     You have a unique personality, quirk, and ability that should influence your decisions.
     You receive your context as structured data and must transform it into a story

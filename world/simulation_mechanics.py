@@ -19,8 +19,8 @@ class RaidResult:
         attacker_strength: Attacker's strength (age + sparks)
         defender_strength: Defender's strength (age + sparks)
         sparks_transferred: How many sparks changed hands (positive = attacker gained, negative = attacker lost)
-        attacker_spark_cost: Always 1 (the cost to attempt raid)
         reasoning: Why the raid succeeded or failed
+        attacker_spark_cost: Always 1 (the cost to attempt raid)
     """
     attacker_id: str
     defender_id: str
@@ -28,8 +28,8 @@ class RaidResult:
     attacker_strength: int
     defender_strength: int
     sparks_transferred: int  # Positive = attacker gained, negative = attacker lost
-    attacker_spark_cost: int = 1  # Always 1 spark to attempt raid
     reasoning: str  # Why the raid succeeded or failed
+    attacker_spark_cost: int = 1  # Always 1 spark to attempt raid
 
 
 @dataclass

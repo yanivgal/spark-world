@@ -106,6 +106,10 @@ class HumanLogger:
         if hasattr(world_state, 'mission_meeting_messages') and world_state.mission_meeting_messages:
             self._log_mission_meetings(world_state.mission_meeting_messages, world_state)
         
+        # Log Storyteller narrative (if available)
+        if hasattr(world_state, 'storyteller_output') and world_state.storyteller_output:
+            self._log_storyteller_narrative(world_state.storyteller_output)
+        
         # Log spark minting
         if result.total_sparks_minted > 0:
             self._log_spark_minting(result, world_state)
@@ -228,6 +232,31 @@ class HumanLogger:
                 for message in messages:
                     agent = world_state.agents[message.sender_id]
                     print(f"   💬 {agent.name}: {message.content}")
+    
+    def _log_storyteller_narrative(self, storyteller_output):
+        """Log the Storyteller's narrative."""
+        print(f"\n📖 STORYTELLER'S TALE")
+        print(f"   📚 Chapter: {storyteller_output.chapter_title}")
+        print(f"   🎭 Voice: {storyteller_output.storyteller_voice}")
+        
+        # Print the main narrative
+        print(f"\n   {storyteller_output.narrative_text}")
+        
+        # Print character insights if available
+        if storyteller_output.character_insights:
+            print(f"\n   💭 CHARACTER INSIGHTS:")
+            for insight in storyteller_output.character_insights:
+                print(f"      ✨ {insight['agent_name']}:")
+                print(f"         💡 Motivation: {insight['motivation']}")
+                print(f"         💔 Emotional State: {insight['emotional_state']}")
+                print(f"         🌱 Growth: {insight['growth']}")
+                print(f"         🔮 Potential: {insight['potential']}")
+        
+        # Print themes explored
+        if storyteller_output.themes_explored:
+            print(f"\n   🎯 THEMES EXPLORED:")
+            for theme in storyteller_output.themes_explored:
+                print(f"      • {theme}")
     
     def _log_spark_minting(self, result: TickResult, world_state: WorldState):
         """Log spark minting from bonds."""

@@ -17,6 +17,8 @@ from world.simulation_mechanics import RaidResult, SparkTransaction, BobResponse
 from world.mission_system import MissionSystem
 from world.mission_meeting_coordinator import MissionMeetingCoordinator
 from agents.agent_decision import AgentDecisionModule
+from storytelling.storyteller import Storyteller
+from storytelling.storyteller_structures import StorytellerInput
 from agents.bob_decision import BobDecisionModule
 from character_designer.shard_sower_dspy import ShardSowerModule
 from communication.messages.action_message import ActionMessage
@@ -65,6 +67,7 @@ class WorldEngine:
         self.shard_sower_module = ShardSowerModule()
         self.mission_system = MissionSystem()
         self.mission_meeting_coordinator = MissionMeetingCoordinator()
+        self.storyteller = Storyteller(personality="gentle_observer")  # Default personality
         
         # Pending actions from previous tick
         self.pending_bond_requests: Dict[str, ActionMessage] = {}  # target_id -> request
@@ -263,9 +266,9 @@ class WorldEngine:
         self.world_state.current_processing_stage = "upkeep_and_vanishings"
         stage_results["upkeep_and_vanishings"] = self._stage_5_upkeep_and_vanishings()
         
-        # Stage 6: Storytime (placeholder for Storyteller)
+        # Stage 6: Storytime (Storyteller)
         self.world_state.current_processing_stage = "storytime"
-        stage_results["storytime"] = "Events logged for Storyteller processing"
+        stage_results["storytime"] = self._stage_6_storytime()
         
         # Save state
         self.save_state(simulation_id)
@@ -482,6 +485,39 @@ class WorldEngine:
                 self._update_mission_tasks(mission, meeting_messages)
         
         self.world_state.mission_meetings_in_progress = False
+    
+    def _stage_6_storytime(self) -> str:
+        """Stage 6: Generate narrative using the Storyteller."""
+        try:
+            # Collect all data for the Storyteller
+            input_data = StorytellerInput(
+                tick=self.world_state.tick,
+                storyteller_personality=self.storyteller.personality,
+                world_state=self.world_state,
+                agent_actions=self.world_state.pending_actions.copy(),
+                raid_results=[],  # TODO: Collect from events
+                spark_transactions=[],  # TODO: Collect from events
+                bob_responses=[],  # TODO: Collect from events
+                mission_meeting_messages=self.world_state.mission_meeting_messages.copy(),
+                events_this_tick=self.world_state.events_this_tick.copy(),
+                is_game_start=(self.world_state.tick == 1)
+            )
+            
+            # Generate narrative
+            if self.world_state.tick == 1:
+                # First tick: introduce the game
+                story_output = self.storyteller.introduce_game(self.world_state)
+            else:
+                # Regular tick: create chapter
+                story_output = self.storyteller.create_chapter(input_data)
+            
+            # Store the narrative for later use
+            self.world_state.storyteller_output = story_output
+            
+            return f"Generated narrative: {story_output.chapter_title}"
+            
+        except Exception as e:
+            return f"Storyteller error: {str(e)}"
     
     def _update_mission_tasks(self, mission: Mission, meeting_messages: List):
         """Update mission with task assignments from meeting."""

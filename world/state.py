@@ -114,4 +114,7 @@ class WorldState:
     total_sparks_minted: int = 0
     total_sparks_lost: int = 0
     total_raids_attempted: int = 0
-    total_bonds_formed: int = 0 
+    total_bonds_formed: int = 0
+    
+    # Storyteller output
+    storyteller_output: Optional[object] = None  # Will store StorytellerOutput 

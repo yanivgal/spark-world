@@ -137,27 +137,29 @@ def test_single_tick(engine: WorldEngine, simulation_id: int, logger: HumanLogge
         return None
 
 
-def test_multiple_ticks(engine: WorldEngine, simulation_id: int, logger: HumanLogger, num_ticks: int = 3):
-    """Test execution of multiple ticks."""
-    results = []
+def test_multiple_ticks(engine: WorldEngine, simulation_id: int, logger: HumanLogger):
+    """Test multiple ticks to see emergent behavior."""
+    print(f"\n{'='*80}")
+    print(f"🔄 TESTING MULTIPLE TICKS")
+    print(f"{'='*80}")
     
-    for i in range(num_ticks):
-        try:
-            # Log tick start
-            logger.log_tick_start(engine.world_state.tick + 1, engine.world_state)
-            
-            # Execute tick
-            result = engine.tick(simulation_id)
-            results.append(result)
-            
-            # Log tick results
-            logger.log_tick_result(result, engine.world_state)
-            
-        except Exception as e:
-            print(f"❌ ERROR in tick {i + 1}: {e}")
-            break
+    # Run 5 ticks to see emergent behavior
+    for tick in range(1, 6):
+        logger.log_tick_start(tick, engine.world_state)
+        
+        result = engine.tick(simulation_id)
+        
+        logger.log_tick_result(result, engine.world_state)
+        
+        # Check if any agents vanished
+        if result.agents_vanished:
+            print(f"⚠️  Agents vanished in tick {tick}: {result.agents_vanished}")
+        
+        # Check if any bonds formed
+        if result.bonds_formed:
+            print(f"🤝 Bonds formed in tick {tick}: {result.bonds_formed}")
     
-    return results
+    return engine.world_state
 
 
 def test_database_persistence(engine: WorldEngine, simulation_id: int):
@@ -266,7 +268,7 @@ def main():
         return
     
     # Test 3: Multiple Ticks
-    results = test_multiple_ticks(engine, simulation_id, logger, 3)
+    results = test_multiple_ticks(engine, simulation_id, logger)
     if not results:
         print("❌ Multiple ticks failed")
         return

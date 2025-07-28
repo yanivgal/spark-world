@@ -137,6 +137,11 @@ class HumanLogger:
         if raids:
             self._log_raids(raids, world_state)
         
+        # Log failed raid attempts
+        failed_raids = [e for e in result.events_logged if e['event_type'] == 'raid_failed_no_sparks']
+        if failed_raids:
+            self._log_failed_raid_attempts(failed_raids, world_state)
+        
         # Log agent changes
         if result.agents_vanished:
             self._log_agent_vanishing(result.agents_vanished, world_state)
@@ -155,11 +160,74 @@ class HumanLogger:
         self._log_final_status(result, world_state)
     
     def _log_mission_meetings(self, meeting_messages: List, world_state: WorldState):
-        """Log mission meetings."""
+        """Log mission meetings with structured flow."""
+        if not meeting_messages:
+            return
+            
         print(f"\n🤝 MISSION MEETINGS")
+        
+        # Group messages by mission
+        missions = {}
         for message in meeting_messages:
-            agent = world_state.agents[message.agent_id]
-            print(f"   💬 {agent.name}: {message.content}")
+            if hasattr(message, 'mission_id'):
+                if message.mission_id not in missions:
+                    missions[message.mission_id] = []
+                missions[message.mission_id].append(message)
+        
+        for mission_id, messages in missions.items():
+            # Get mission details
+            mission = None
+            for m in world_state.missions.values():
+                if m.mission_id == mission_id:
+                    mission = m
+                    break
+            
+            if mission:
+                print(f"\n   🎯 MISSION: {mission.title}")
+                print(f"   📋 Goal: {mission.goal}")
+                print(f"   📊 Progress: {mission.current_progress}")
+                
+                # Show meeting flow
+                print(f"   💬 MEETING FLOW:")
+                
+                # Group by message type
+                leader_intro = [m for m in messages if hasattr(m, 'message_type') and m.message_type == 'LEADER_INTRODUCTION']
+                leader_opening = [m for m in messages if hasattr(m, 'message_type') and m.message_type == 'LEADER_OPENING']
+                agent_responses = [m for m in messages if hasattr(m, 'message_type') and m.message_type == 'AGENT_RESPONSE']
+                task_assignment = [m for m in messages if hasattr(m, 'message_type') and m.message_type == 'TASK_ASSIGNMENT']
+                
+                # Show leader introduction (first tick only)
+                if leader_intro:
+                    leader = world_state.agents[leader_intro[0].sender_id]
+                    print(f"      👑 {leader.name} (Leader): \"{leader_intro[0].content}\"")
+                
+                # Show leader opening
+                if leader_opening:
+                    leader = world_state.agents[leader_opening[0].sender_id]
+                    print(f"      🎤 {leader.name} (Leader): \"{leader_opening[0].content}\"")
+                
+                # Show agent responses
+                for response in agent_responses:
+                    agent = world_state.agents[response.sender_id]
+                    print(f"      💭 {agent.name}: \"{response.content}\"")
+                
+                # Show task assignment
+                if task_assignment:
+                    leader = world_state.agents[task_assignment[0].sender_id]
+                    print(f"      📝 {leader.name} (Leader): \"{task_assignment[0].content}\"")
+                
+                # Show task assignments if available
+                if mission.assigned_tasks:
+                    print(f"      📋 TASK ASSIGNMENTS:")
+                    for agent_id, task in mission.assigned_tasks.items():
+                        if agent_id in world_state.agents:
+                            agent = world_state.agents[agent_id]
+                            print(f"         • {agent.name}: {task}")
+            else:
+                # Fallback for messages without mission context
+                for message in messages:
+                    agent = world_state.agents[message.sender_id]
+                    print(f"   💬 {agent.name}: {message.content}")
     
     def _log_spark_minting(self, result: TickResult, world_state: WorldState):
         """Log spark minting from bonds."""
@@ -232,6 +300,20 @@ class HumanLogger:
             else:
                 print(f"   🛡️  {attacker.name} raids {defender.name} but fails!")
                 print(f"   💪 {defender.name} gains 1 spark")
+    
+    def _log_failed_raid_attempts(self, failed_raids: List[Dict], world_state: WorldState):
+        """Log failed raid attempts due to insufficient sparks."""
+        print(f"\n❌ FAILED RAID ATTEMPTS")
+        
+        for raid in failed_raids:
+            data = raid['data']
+            attacker_id = data['attacker_id']
+            defender_id = data['defender_id']
+            
+            attacker = world_state.agents[attacker_id]
+            defender = world_state.agents[defender_id]
+            
+            print(f"   💀 {attacker.name} tries to raid {defender.name} but has no sparks to risk!")
     
     def _log_bob_donations(self, donations: List[Dict], world_state: WorldState):
         """Log Bob's generosity."""

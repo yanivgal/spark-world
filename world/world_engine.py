@@ -313,12 +313,11 @@ class WorldEngine:
     def _stage_2_bob_decides(self) -> str:
         """Stage 2: Bob processes spark requests from previous tick."""
         # Get all request_spark actions from previous tick
-        spark_requests = []
-        for action in self.world_state.pending_actions:
-            if action.intent == "request_spark":
-                spark_requests.append(action)
+        spark_requests = self.world_state.pending_spark_requests.copy()
         
         if not spark_requests:
+            # Add Bob's regeneration even if no requests
+            self.world_state.bob_sparks += self.world_state.bob_sparks_per_tick
             return "No spark requests to process"
         
         # Process with Bob decision module
@@ -345,12 +344,27 @@ class WorldEngine:
                     transaction_type="bob_donation",
                     reason=response.reasoning
                 )
+                
+                # Log Bob donation event
+                self._log_event(
+                    simulation_id=1,  # TODO: Get from context
+                    tick=self.world_state.tick,
+                    event_type="bob_donation",
+                    data={
+                        "to_entity": response.requesting_agent_id,
+                        "amount": response.sparks_granted,
+                        "reason": response.reasoning
+                    }
+                )
         
         # Update Bob's spark count
         self.world_state.bob_sparks = max(0, self.world_state.bob_sparks - total_granted)
         
         # Add Bob's regeneration
         self.world_state.bob_sparks += self.world_state.bob_sparks_per_tick
+        
+        # Clear processed requests
+        self.world_state.pending_spark_requests.clear()
         
         return f"Bob granted {total_granted} sparks to {len([r for r in bob_responses if r.sparks_granted > 0])} agents"
     
@@ -437,6 +451,7 @@ class WorldEngine:
     def _conduct_mission_meetings(self):
         """Conduct mission meetings for all active missions."""
         self.world_state.mission_meetings_in_progress = True
+        self.world_state.mission_meeting_messages.clear()  # Clear previous tick's messages
         
         for mission in self.world_state.missions.values():
             if not mission.is_complete:
@@ -457,13 +472,32 @@ class WorldEngine:
                     previous_actions=previous_actions
                 )
                 
-                # Update tick numbers
+                # Update tick numbers and store messages
                 for message in meeting_messages:
                     message.tick = self.world_state.tick
                 
-                self.mission_meeting_messages.extend(meeting_messages)
+                self.world_state.mission_meeting_messages.extend(meeting_messages)
+                
+                # Update mission with task assignments from the meeting
+                self._update_mission_tasks(mission, meeting_messages)
         
         self.world_state.mission_meetings_in_progress = False
+    
+    def _update_mission_tasks(self, mission: Mission, meeting_messages: List):
+        """Update mission with task assignments from meeting."""
+        # Find the task assignment message (last message from leader)
+        task_assignment = None
+        for message in reversed(meeting_messages):
+            if message.sender_id == mission.leader_id and message.message_type == "TASK_ASSIGNMENT":
+                task_assignment = message
+                break
+        
+        if task_assignment:
+            # Parse task assignments from the message content
+            # This is a simplified version - in practice, you'd want more structured parsing
+            mission.assigned_tasks = {
+                "leader_message": task_assignment.content
+            }
     
     def _generate_observation_packets(self) -> Dict[str, ObservationPacket]:
         """Generate observation packets for all agents."""
@@ -543,6 +577,19 @@ class WorldEngine:
             if not mission.is_complete:
                 bond = self.world_state.bonds[mission.bond_id]
                 if agent_id in bond.members:
+                    # Get recent meeting messages for this mission
+                    recent_messages = []
+                    for message in self.world_state.mission_meeting_messages:
+                        if hasattr(message, 'mission_id') and message.mission_id == mission.mission_id:
+                            agent_name = self.world_state.agents[message.sender_id].name
+                            recent_messages.append(f"{agent_name}: {message.content}")
+                    
+                    # Get team member names
+                    team_members = []
+                    for member_id in bond.members:
+                        agent = self.world_state.agents[member_id]
+                        team_members.append(agent.name)
+                    
                     return MissionStatus(
                         mission_id=mission.mission_id,
                         mission_title=mission.title,
@@ -551,7 +598,9 @@ class WorldEngine:
                         current_progress=mission.current_progress,
                         leader_id=mission.leader_id,
                         assigned_tasks=mission.assigned_tasks,
-                        mission_complete=mission.is_complete
+                        mission_complete=mission.is_complete,
+                        team_members=team_members,
+                        recent_messages=recent_messages
                     )
         return None
     
@@ -568,8 +617,6 @@ class WorldEngine:
                 self._handle_reply_action(action)
             elif action.intent == "request_spark":
                 # Store for Bob's decision in next tick
-                if not hasattr(self.world_state, 'pending_spark_requests'):
-                    self.world_state.pending_spark_requests = []
                 self.world_state.pending_spark_requests.append(action)
         
         # Clear processed actions
@@ -639,8 +686,11 @@ class WorldEngine:
         """Generate a mission for a newly formed bond."""
         bond = self.world_state.bonds[bond_id]
         
+        # Create world context string
+        world_context = f"Tick {self.world_state.tick}, {len(self.world_state.agents)} total agents, {len(self.world_state.bonds)} active bonds"
+        
         # Create mission using Mission System
-        mission = self.mission_system.generate_mission(bond_id, bond.leader_id, self.world_state.tick)
+        mission = self.mission_system.generate_mission_for_bond(bond, self.world_state.agents, world_context)
         
         # Add mission to world
         self.world_state.missions[mission.mission_id] = mission
@@ -683,7 +733,22 @@ class WorldEngine:
             attacker = self.world_state.agents[action.agent_id]
             defender = self.world_state.agents[action.target]
             
-            # Calculate strengths
+            # Check if attacker has enough sparks to risk (needs at least 1 spark)
+            if attacker.sparks < 1:
+                # Log failed raid attempt due to insufficient sparks
+                self._log_event(
+                    simulation_id=1,  # TODO: Get from context
+                    tick=self.world_state.tick,
+                    event_type="raid_failed_no_sparks",
+                    data={
+                        "attacker_id": action.agent_id,
+                        "defender_id": action.target,
+                        "reason": "Attacker has no sparks to risk"
+                    }
+                )
+                return
+            
+            # Calculate strengths (before any spark changes)
             attacker_strength = attacker.age + attacker.sparks
             defender_strength = defender.age + defender.sparks
             
@@ -693,16 +758,34 @@ class WorldEngine:
             
             # Process raid outcome
             if success:
-                # Attacker steals 1-5 sparks
+                # Attacker steals 1-5 sparks from defender
                 steal_amount = min(random.randint(1, 5), defender.sparks)
                 attacker.sparks += steal_amount
                 defender.sparks -= steal_amount
                 sparks_transferred = steal_amount
+                
+                # Log spark transaction for successful raid
+                self._log_spark_transaction(
+                    from_entity=action.target,
+                    to_entity=action.agent_id,
+                    amount=steal_amount,
+                    transaction_type="raid_success",
+                    reason=f"Successful raid: {attacker_strength} vs {defender_strength} strength"
+                )
             else:
-                # Defender steals 1 spark from attacker
+                # Defender steals 1 spark from attacker (this is the "risk")
                 attacker.sparks -= 1
                 defender.sparks += 1
                 sparks_transferred = -1
+                
+                # Log spark transaction for failed raid
+                self._log_spark_transaction(
+                    from_entity=action.agent_id,
+                    to_entity=action.target,
+                    amount=1,
+                    transaction_type="raid_failure",
+                    reason=f"Failed raid: {attacker_strength} vs {defender_strength} strength"
+                )
             
             # Create raid result
             raid_result = RaidResult(

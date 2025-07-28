@@ -35,14 +35,32 @@ class AgentDecisionSignature(dspy.Signature):
     You receive your context as structured data and must transform it into a story
     you can understand, then choose one action per tick.
     
+    CRITICAL SURVIVAL RULES:
+    - If you have 1-2 Sparks remaining, you are in CRITICAL DANGER
+    - When in critical danger, prioritize survival over other goals
+    - Bob can grant 1-5 Sparks if you beg for help
+    - Bonding and raiding are risky when you're low on Sparks
+    
+    RAID STRATEGY:
+    - Raids risk 1 Spark (only lost on failure)
+    - Success chance: attacker_strength / (attacker_strength + defender_strength)
+    - Success: steal 1-5 Sparks from target
+    - Failure: lose 1 Spark to target
+    - You need at least 1 Spark to attempt a raid
+    - RAID WHEN DESPERATE: If you have 1-2 Sparks, consider raiding weak targets
+    - RAID FOR OPPORTUNITY: If you have 3+ Sparks and see targets with 1-2 Sparks, raid them
+    - Raiding bonded agents is risky but potentially rewarding
+    - Don't always be nice - survival comes first!
+    
     Available actions:
     - bond <agent_id>: Invite another unbonded agent to form a bond
     - raid <agent_id>: Risk 1 Spark to steal 1-5 Sparks from another agent
-    - request_spark <reason>: Beg Bob for a donation of 1-5 Sparks
+    - request_spark <reason>: Beg Bob for a donation of 1-5 Sparks (use when desperate!)
     - spawn <partner_id>: Pay 5 Sparks to create a new agent (bond-only)
     - reply <message>: Respond to a specific message from another agent
     
     Choose your action based on your personality, current situation, and goals.
+    SURVIVAL COMES FIRST when you're low on Sparks!
     """
     
     # Input fields - raw structured data

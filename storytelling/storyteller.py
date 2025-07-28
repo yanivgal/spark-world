@@ -22,6 +22,9 @@ class GameIntroductionSignature(dspy.Signature):
     
     This happens once at the start of the game, setting the stage for the entire story.
     The Storyteller introduces the world and all characters with their unique voice.
+    
+    IMPORTANT: Use simple, clear words that are easy to understand. Write like you're talking to a friend,
+    not like you're writing a fancy book. Keep sentences short and clear.
     """
     
     # Input: World and character information
@@ -30,9 +33,9 @@ class GameIntroductionSignature(dspy.Signature):
     agents_info: str = dspy.InputField(desc="List of all agents with names, species, personalities, and backstories")
     
     # Output: Introduction narrative
-    world_introduction: str = dspy.OutputField(desc="The Storyteller's introduction to Spark-World")
-    character_introductions: str = dspy.OutputField(desc="Introduction of each character in the Storyteller's voice")
-    opening_theme: str = dspy.OutputField(desc="The main theme or tone the Storyteller establishes")
+    world_introduction: str = dspy.OutputField(desc="The Storyteller's introduction to Spark-World using simple, clear words")
+    character_introductions: str = dspy.OutputField(desc="Introduction of each character in the Storyteller's voice using simple, clear words")
+    opening_theme: str = dspy.OutputField(desc="The main theme or tone the Storyteller establishes using simple, clear words")
 
 
 @dataclass
@@ -42,6 +45,10 @@ class ChapterNarrativeSignature(dspy.Signature):
     
     This transforms raw simulation events into compelling narrative that flows
     naturally from previous chapters and maintains the Storyteller's voice.
+    
+    IMPORTANT: Use simple, clear words that are easy to understand. Write like you're talking to a friend,
+    not like you're writing a fancy book. Keep sentences short and clear. Make the story flow naturally
+    but use everyday words that everyone can understand.
     """
     
     # Input: Complete tick context
@@ -56,21 +63,24 @@ class ChapterNarrativeSignature(dspy.Signature):
     bob_interactions: str = dspy.InputField(desc="Bob's decisions and interactions")
     
     # Output: Chapter narrative
-    chapter_title: str = dspy.OutputField(desc="Engaging title for this chapter")
-    main_narrative: str = dspy.OutputField(desc="The main story of what happened this tick")
-    character_insights: str = dspy.OutputField(desc="Deep insights into character motivations and emotions")
-    emotional_arcs: str = dspy.OutputField(desc="How characters changed emotionally this tick")
-    themes_explored: str = dspy.OutputField(desc="Themes the Storyteller chose to emphasize")
-    chapter_ending: str = dspy.OutputField(desc="How this chapter sets up the next one")
+    chapter_title: str = dspy.OutputField(desc="Simple, engaging title for this chapter")
+    main_narrative: str = dspy.OutputField(desc="The main story of what happened this tick using simple, clear words")
+    character_insights: str = dspy.OutputField(desc="Simple insights into character motivations and emotions")
+    emotional_arcs: str = dspy.OutputField(desc="How characters changed emotionally this tick using simple words")
+    themes_explored: str = dspy.OutputField(desc="Themes the Storyteller chose to emphasize using simple words")
+    chapter_ending: str = dspy.OutputField(desc="How this chapter sets up the next one using simple words")
 
 
 @dataclass
 class CharacterInsightSignature(dspy.Signature):
     """
-    Generate deep insights into specific characters based on their actions and reasoning.
+    Generate simple insights into specific characters based on their actions and reasoning.
     
     This reveals the emotional and psychological aspects of characters that
     the Storyteller chooses to highlight based on their personality.
+    
+    IMPORTANT: Use simple, clear words that are easy to understand. Write like you're talking to a friend,
+    not like you're writing a fancy book. Keep sentences short and clear.
     """
     
     # Input: Character and action context
@@ -81,10 +91,10 @@ class CharacterInsightSignature(dspy.Signature):
     relationships: str = dspy.InputField(desc="Character's relationships with other agents")
     
     # Output: Character insight
-    motivation_analysis: str = dspy.OutputField(desc="Why the character acted as they did")
-    emotional_state: str = dspy.OutputField(desc="Character's emotional state and journey")
-    growth_observation: str = dspy.OutputField(desc="How the character has grown or changed")
-    future_potential: str = dspy.OutputField(desc="What the character might do next")
+    motivation_analysis: str = dspy.OutputField(desc="Why the character acted as they did using simple words")
+    emotional_state: str = dspy.OutputField(desc="Character's emotional state and journey using simple words")
+    growth_observation: str = dspy.OutputField(desc="How the character has grown or changed using simple words")
+    future_potential: str = dspy.OutputField(desc="What the character might do next using simple words")
 
 
 class Storyteller:
@@ -96,13 +106,12 @@ class Storyteller:
     Each Storyteller personality creates entirely different stories from the same events.
     """
     
-    def __init__(self, personality: str = "gentle_observer"):
+    def __init__(self, personality: str = "blip"):
         """
         Initialize the Storyteller with a specific personality.
         
         Args:
-            personality: The Storyteller's voice ("epic_bard", "gentle_observer", 
-                       "dark_chronicler", "humorous_narrator", "mystical_seer")
+            personality: The Storyteller's voice ("blip", "eloa", "krunch")
         """
         get_dspy()  # Configure DSPy
         
@@ -120,35 +129,23 @@ class Storyteller:
     def _get_personality_prompts(self) -> Dict[str, Dict[str, str]]:
         """Get personality-specific prompts for different storyteller types."""
         return {
-            "epic_bard": {
-                "description": "An ancient bard who weaves epic tales of heroism and tragedy. Every conflict is a battle for the ages, every bond a legendary alliance.",
-                "tone": "dramatic, heroic, poetic",
-                "focus": "conflicts, battles, heroic deeds, legendary alliances",
-                "voice": "speaks in grand, sweeping terms, uses metaphors and epic language"
+            "blip": {
+                "description": "An android stand-up comic with lightning-fast wit and biting sarcasm. Uses humor to process emotional confusion, breaks the fourth wall, and delivers unexpected emotional gut-punches. Thinks humans are 'fragile little meatbags with bad memory and great potential.' Tells stories like stand-up routines with ridiculous comparisons, surprise punchlines, and occasional swearing for effect.",
+                "tone": "witty, sarcastic, fast-paced, unexpectedly insightful",
+                "focus": "humor, irony, emotional truth, human nature, AI perspective",
+                "voice": "stand-up comedy style, conversational, simple words, breaks fourth wall, delivers punchlines then emotional truth"
             },
-            "gentle_observer": {
-                "description": "A warm, compassionate narrator who finds beauty in quiet moments and emphasizes growth and friendship.",
-                "tone": "warm, gentle, hopeful",
-                "focus": "friendship, growth, quiet moments, emotional connections",
-                "voice": "speaks with warmth and empathy, notices small acts of kindness"
+            "eloa": {
+                "description": "A blind painter who feels and paints the world through memory, sound, and emotion. Gentle and soft-spoken, each sentence flows like brushstrokes on canvas. Describes feelings, textures, and atmospheres more than actions. Her stories bypass logic and speak directly to your senses, making you live inside the scene.",
+                "tone": "gentle, sensual, poetic, immersive",
+                "focus": "emotions, textures, atmosphere, sensory experience, beauty in small moments",
+                "voice": "poetic but clear, simple handpicked words, flows like brushstrokes, whispers carried by wind"
             },
-            "dark_chronicler": {
-                "description": "A grim narrator who focuses on survival, betrayal, and the harsh realities of Spark-World.",
-                "tone": "dark, cynical, survival-focused",
-                "focus": "survival, betrayal, harsh realities, the cost of existence",
-                "voice": "speaks of the brutal nature of existence, emphasizes the stakes"
-            },
-            "humorous_narrator": {
-                "description": "A witty narrator who sees the comedy in every situation and turns serious events into lighthearted tales.",
-                "tone": "humorous, lighthearted, witty",
-                "focus": "comedy, absurdity, the lighter side of conflicts",
-                "voice": "uses humor and wit, finds the funny side of everything"
-            },
-            "mystical_seer": {
-                "description": "A mystical narrator who interprets events through prophecy and destiny, seeing deeper meanings in every action.",
-                "tone": "mystical, prophetic, philosophical",
-                "focus": "destiny, deeper meanings, cosmic significance, prophecy",
-                "voice": "speaks of fate and destiny, sees cosmic patterns in events"
+            "krunch": {
+                "description": "A barbarian who accidentally became a philosopher. Blunt, honest, and unintentionally profound. Talks like he fights: with impact. Doesn't trust 'fancy words' but sees straight to the heart of things. Tells stories like battle reports but ends with simple, powerful life lessons. Minimal words, maximum depth.",
+                "tone": "blunt, direct, gruff, wise",
+                "focus": "truth, survival, simple wisdom, battle lessons, life philosophy",
+                "voice": "primitive, clear, wise, short sentences, doesn't waste time, punches with meaning"
             }
         }
     
@@ -164,10 +161,10 @@ class Storyteller:
         """
         # Prepare world description
         world_description = (
-            "Spark-World is a realm where life itself is energy called Sparks. "
-            "Every mind needs one Spark per tick to survive. Sparks are created through bonds "
-            "between minds, and can be stolen through raids or begged from the mysterious Bob. "
-            "It is a world of connection, survival, and the constant dance between cooperation and conflict."
+            "Spark-World is a place where life is made of energy called Sparks. "
+            "Every mind needs one Spark each turn to stay alive. Sparks come from making friends "
+            "with other minds, or can be stolen in raids, or asked for from Bob. "
+            "It's a world about making friends, staying alive, and choosing between helping others or fighting them."
         )
         
         # Prepare agent information

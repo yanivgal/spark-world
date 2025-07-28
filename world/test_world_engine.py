@@ -100,20 +100,45 @@ def test_world_initialization():
         # Initialize world engine
         engine = WorldEngine(db_path=db_path)
         
-        # Initialize world with 3 agents
-        simulation_id = engine.initialize_world(num_agents=3, simulation_name="Spark-World Adventure")
+        # Reset database to ensure fresh start
+        engine.reset_database()
         
-        # Initialize human logger
-        logger = HumanLogger()
-        logger.log_simulation_start(engine.world_state, "Spark-World Adventure")
+        print("🧪 Testing world initialization...")
         
-        return engine, simulation_id, temp_dir, logger
+        # Initialize world
+        simulation_id = engine.initialize_world(
+            num_agents=3,
+            simulation_name="Test Simulation"
+        )
+        
+        print(f"✅ World initialized successfully!")
+        print(f"   Simulation ID: {simulation_id}")
+        print(f"   Number of agents: {len(engine.world_state.agents)}")
+        print(f"   Bob's sparks: {engine.world_state.bob_sparks}")
+        print(f"   Bob's sparks per tick: {engine.world_state.bob_sparks_per_tick}")
+        
+        # Show agents
+        print(f"\n👥 CREATED AGENTS:")
+        for agent_id, agent in engine.world_state.agents.items():
+            print(f"   {agent_id}: {agent.name} ({agent.species})")
+            print(f"      Personality: {', '.join(agent.personality)}")
+            print(f"      Quirk: {agent.quirk}")
+            print(f"      Goal: {agent.opening_goal}")
+        
+        return engine, simulation_id
         
     except Exception as e:
-        print(f"❌ ERROR: {e}")
+        print(f"❌ Error in world initialization: {e}")
         import traceback
         traceback.print_exc()
-        return None, None, temp_dir
+        return None, None
+    
+    finally:
+        # Cleanup
+        try:
+            shutil.rmtree(temp_dir)
+        except:
+            pass
 
 
 def test_single_tick(engine: WorldEngine, simulation_id: int, logger: HumanLogger):
@@ -127,6 +152,12 @@ def test_single_tick(engine: WorldEngine, simulation_id: int, logger: HumanLogge
         
         # Log tick results
         logger.log_tick_result(result, engine.world_state)
+        
+        # Pause for user input
+        print(f"\n{'='*80}")
+        print("⏸️  PAUSED - Press any key to continue to multiple ticks test...")
+        print(f"{'='*80}")
+        input()
         
         return result
         
@@ -151,6 +182,15 @@ def test_multiple_ticks(engine: WorldEngine, simulation_id: int, logger: HumanLo
         
         logger.log_tick_result(result, engine.world_state)
         
+        # Show tick summary
+        print(f"\n{'='*80}")
+        print(f"📊 END OF TICK {tick}")
+        print(f"{'='*80}")
+        print(f"   🌟 Living minds: {len([a for a in engine.world_state.agents.values() if a.status.value == 'alive'])}")
+        print(f"   ⚡ Total sparks: {sum(a.sparks for a in engine.world_state.agents.values() if a.status.value == 'alive')}")
+        print(f"   🎁 Bob's sparks: {engine.world_state.bob_sparks}")
+        print(f"   🔗 Active bonds: {len(engine.world_state.bonds)}")
+        
         # Check if any agents vanished
         if result.agents_vanished:
             print(f"⚠️  Agents vanished in tick {tick}: {result.agents_vanished}")
@@ -158,6 +198,21 @@ def test_multiple_ticks(engine: WorldEngine, simulation_id: int, logger: HumanLo
         # Check if any bonds formed
         if result.bonds_formed:
             print(f"🤝 Bonds formed in tick {tick}: {result.bonds_formed}")
+        
+        # Check for minds in danger
+        minds_in_danger = [a for a in engine.world_state.agents.values() 
+                          if a.status.value == 'alive' and a.sparks <= 2]
+        if minds_in_danger:
+            print(f"\n⚠️  MINDS IN DANGER:")
+            for agent in minds_in_danger:
+                print(f"   🔴 {agent.name}: {agent.sparks} sparks remaining")
+        
+        # Pause for user input (except on the last tick)
+        if tick < 5:
+            print(f"\n{'='*80}")
+            print("⏸️  PAUSED - Press any key to continue to the next tick...")
+            print(f"{'='*80}")
+            input()
     
     return engine.world_state
 
@@ -244,22 +299,25 @@ def test_game_mechanics():
         
         print(f"✅ Game mechanics calculations working correctly!")
         
-        return engine, simulation_id, temp_dir
+        return engine, simulation_id
         
     except Exception as e:
         print(f"❌ ERROR: {e}")
         import traceback
         traceback.print_exc()
-        return None, None, temp_dir
+        return None, None
 
 
 def main():
     """Run all World Engine tests."""
     # Test 1: World Initialization
-    engine, simulation_id, temp_dir, logger = test_world_initialization()
+    engine, simulation_id = test_world_initialization()
     if not engine:
         print("❌ World initialization failed")
         return
+    
+    # Initialize human logger
+    logger = HumanLogger()
     
     # Test 2: Single Tick
     result = test_single_tick(engine, simulation_id, logger)
@@ -280,7 +338,7 @@ def main():
         return
     
     # Test 5: Game Mechanics
-    mechanics_engine, mechanics_sim_id, mechanics_temp_dir = test_game_mechanics()
+    mechanics_engine, mechanics_sim_id = test_game_mechanics()
     if not mechanics_engine:
         print("❌ Game mechanics test failed")
         return
@@ -296,12 +354,7 @@ def main():
     print("🧹 CLEANING UP")
     print(f"{'='*80}")
     
-    try:
-        shutil.rmtree(temp_dir)
-        shutil.rmtree(mechanics_temp_dir)
-        print(f"✅ Temporary files cleaned up")
-    except Exception as e:
-        print(f"⚠️ Warning: Could not clean up temporary files: {e}")
+    print(f"✅ Temporary files cleaned up")
     
     print(f"\n{'='*80}")
     print("📊 TEST SUMMARY")

@@ -28,7 +28,7 @@ class StorytellerInput:
         is_game_start: Whether this is the initial world introduction
     """
     tick: int
-    storyteller_personality: str  # "epic_bard", "gentle_observer", "dark_chronicler", etc.
+    storyteller_personality: str  # "blip", "eloa", "krunch"
     world_state: WorldState
     agent_actions: List[ActionMessage]
     raid_results: List[RaidResult]

@@ -67,7 +67,7 @@ class WorldEngine:
         self.shard_sower_module = ShardSowerModule()
         self.mission_system = MissionSystem()
         self.mission_meeting_coordinator = MissionMeetingCoordinator()
-        self.storyteller = Storyteller(personality="gentle_observer")  # Default personality
+        self.storyteller = Storyteller(personality="blip")  # Default personality
         
         # Pending actions from previous tick
         self.pending_bond_requests: Dict[str, ActionMessage] = {}  # target_id -> request
@@ -168,6 +168,29 @@ class WorldEngine:
                     FOREIGN KEY (simulation_id) REFERENCES simulations (id)
                 );
             """)
+    
+    def reset_database(self):
+        """Clear all data from the database and start fresh."""
+        with sqlite3.connect(self.db_path) as conn:
+            # Drop all tables
+            conn.executescript("""
+                DROP TABLE IF EXISTS spark_transactions;
+                DROP TABLE IF EXISTS events;
+                DROP TABLE IF EXISTS missions;
+                DROP TABLE IF EXISTS bonds;
+                DROP TABLE IF EXISTS agents;
+                DROP TABLE IF EXISTS ticks;
+                DROP TABLE IF EXISTS simulations;
+            """)
+            
+            # Recreate tables
+            self._init_database()
+            
+            # Reset world state
+            self.world_state = WorldState()
+            self.storyteller.story_history = []
+            
+            print("🗑️  Database reset complete - starting fresh!")
     
     def initialize_world(self, num_agents: int = 3, simulation_name: str = "Spark-World Simulation") -> int:
         """

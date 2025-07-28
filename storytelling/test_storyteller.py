@@ -66,7 +66,7 @@ def test_storyteller_personalities():
     world_state.agents["agent_002"] = agent2
     
     # Test different personalities
-    personalities = ["gentle_observer", "epic_bard", "dark_chronicler", "humorous_narrator", "mystical_seer"]
+    personalities = ["blip", "eloa", "krunch"]
     
     for personality in personalities:
         print(f"\n{'='*60}")
@@ -117,7 +117,7 @@ def test_story_continuity():
     print("📚 TESTING STORY CONTINUITY")
     print(f"{'='*80}")
     
-    storyteller = Storyteller(personality="gentle_observer")
+    storyteller = Storyteller(personality="blip")
     
     # Create a simple world state
     world_state = WorldState()
@@ -149,7 +149,7 @@ def test_story_continuity():
     for tick in range(2, 5):
         input_data = StorytellerInput(
             tick=tick,
-            storyteller_personality="gentle_observer",
+            storyteller_personality="blip",
             world_state=world_state,
             agent_actions=[],
             raid_results=[],

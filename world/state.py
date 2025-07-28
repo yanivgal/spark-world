@@ -95,7 +95,9 @@ class WorldState:
     # Communication Queues
     pending_actions: List[ActionMessage] = field(default_factory=list)
     pending_bond_requests: Dict[str, ActionMessage] = field(default_factory=dict)  # target_id -> bond request
+    pending_spark_requests: List[ActionMessage] = field(default_factory=list)  # request_spark actions for next tick
     message_queue: Dict[str, List[ActionMessage]] = field(default_factory=dict)  # agent_id -> messages
+    mission_meeting_messages: List = field(default_factory=list)  # Mission meeting messages for this tick
     
     # Event Tracking
     events_this_tick: List[Dict] = field(default_factory=list)  # Raw events for Storyteller

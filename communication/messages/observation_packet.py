@@ -67,6 +67,8 @@ class MissionStatus:
     leader_id: str
     assigned_tasks: Dict[str, str]  # agent_id -> task description
     mission_complete: bool
+    team_members: Optional[List[str]] = None  # Names of team members
+    recent_messages: Optional[List[str]] = None  # Recent meeting messages
 
 
 @dataclass

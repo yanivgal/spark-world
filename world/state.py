@@ -89,11 +89,12 @@ class WorldState:
     missions: Dict[str, Mission] = field(default_factory=dict)
     
     # Game Mechanics State
-    bob_sparks: int = 100  # Bob's current spark count
-    bob_sparks_per_tick: int = 5  # How many Bob gains per tick
+    bob_sparks: int = 0  # Bob's current spark count (will be set based on agent count)
+    bob_sparks_per_tick: int = 0  # How many Bob gains per tick (will be calculated)
     
     # Communication Queues
     pending_actions: List[ActionMessage] = field(default_factory=list)
+    pending_bond_requests: Dict[str, ActionMessage] = field(default_factory=dict)  # target_id -> bond request
     message_queue: Dict[str, List[ActionMessage]] = field(default_factory=dict)  # agent_id -> messages
     
     # Event Tracking

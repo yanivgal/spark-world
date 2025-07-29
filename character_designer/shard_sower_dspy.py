@@ -3,6 +3,7 @@ from typing import List, Optional
 import random
 from world.state import Agent
 from communication.messages.observation_packet import AgentStatus, BondStatus
+from character_designer.dspy_init import get_dspy
 
 class ShardSowerSignature(dspy.Signature):
     """
@@ -22,13 +23,15 @@ class ShardSowerSignature(dspy.Signature):
     - an internal contradiction that defines their behavior (e.g., a pacifist warrior, a healer who hates touch)  
     - a morally gray or unsettling trait that complicates how others perceive them
 
+    **CRITICAL: Each character you create MUST be completely unique and different from any previous character.**
+    **Never repeat names, species, or backstories. Each creation should be a fresh, original soul.**
 
     ### Strict character structure:
     - **name**: unique, vivid, emotionally resonant  
     - **species**: any imaginable form, add 1–2 sentences describing what the species looks like or how it moves/interacts physically.  
     - **home_realm**: strange, fitting domain (e.g., Hollow Nest, Memory Swamp, Iron Choir)  
     - **personality**: 3–5 adjectives (combine soft and hard edges: spiteful / dreamy / loyal / paranoid)  
-    - **quirk**: a single habit or behavior that reveals their nature (e.g., “writes messages no one remembers reading”)  
+    - **quirk**: a single habit or behavior that reveals their nature (e.g., "writes messages no one remembers reading")  
     - **ability**: ≤15-word power tied to species/quirk; must be narratively powerful and thematically coherent  
     - **backstory**: Write a vivid and emotionally grounded paragraph (2–3 short sentences, max 70 words).
         - Begin with a specific moment the character directly experienced — something they saw, did, or survived. It can be quiet or dramatic, but it must be concrete, sensory, and grounded in reality.
@@ -41,7 +44,7 @@ class ShardSowerSignature(dspy.Signature):
 
     ### Tone constraints:
     - At least one character must be disturbing, tragic, or morally complex  
-    - Avoid archetypes like “happy helper” or “wise guardian” unless subverted in tone or motive  
+    - Avoid archetypes like "happy helper" or "wise guardian" unless subverted in tone or motive  
     - Use distinct linguistic tones per character: one lyrical, one sarcastic, one clinical, etc.
 
     ### Output warning:
@@ -70,8 +73,13 @@ class ShardSowerModule:
     
     def __init__(self):
         """Initialize the Shard-Sower module."""
+        get_dspy()  # Configure DSPy
         self.shard_sower = dspy.Predict(ShardSowerSignature)
         self.existing_names = set()
+    
+    def reset(self):
+        """Reset the module for a fresh simulation run."""
+        self.existing_names.clear()
     
     def create_agent(self) -> Agent:
         """
@@ -81,7 +89,8 @@ class ShardSowerModule:
             Agent: A new agent with generated personality and attributes
         """
         # Generate random seed for uniqueness
-        random_seed = random.randint(1, 1000000)
+        import time
+        random_seed = int(time.time() * 1000) + random.randint(1, 1000000)
         
         # Create agent using Shard-Sower
         result = self.shard_sower(

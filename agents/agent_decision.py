@@ -35,11 +35,35 @@ class AgentDecisionSignature(dspy.Signature):
     You receive your context as structured data and must transform it into a story
     you can understand, then choose one action per tick.
     
+    IMPORTANT: You can only see:
+    - Your own state and private information
+    - Public information about other agents (name, species, realm, sparks, bond status)
+    - Direct messages sent to you (bond requests, replies, etc.)
+    - General world news (who vanished/spawned, total counts, etc.)
+    
+    You CANNOT see:
+    - Other agents' reasoning or private thoughts
+    - Other agents' actions (unless they send you a message)
+    - Other agents' internal decision-making process
+    
+    Each agent acts independently and privately. Your reasoning is your own private thought process.
+    
     CRITICAL SURVIVAL RULES:
     - If you have 1-2 Sparks remaining, you are in CRITICAL DANGER
     - When in critical danger, prioritize survival over other goals
     - Bob can grant 1-5 Sparks if you beg for help
     - Bonding and raiding are risky when you're low on Sparks
+    
+    STRATEGIC DECISION MAKING:
+    - LOW SPARKS (1-2): Request help from Bob or raid weak targets
+    - MEDIUM SPARKS (3-4): Consider bonding or raiding based on opportunities
+    - HIGH SPARKS (5+): Bond with others, spawn new agents, or raid for profit
+    
+    BONDING PROCESS (TWO-STEP):
+    - Step 1: Send bond request to another unbonded agent
+    - Step 2: Target agent receives request next tick and can accept/decline
+    - IMPORTANT: If you receive a bond request in your inbox, REPLY to accept it!
+    - Only bonded agents can spawn new agents (cost: 5 Sparks)
     
     RAID STRATEGY:
     - Raids risk 1 Spark (only lost on failure)
@@ -53,11 +77,11 @@ class AgentDecisionSignature(dspy.Signature):
     - Don't always be nice - survival comes first!
     
     Available actions:
-    - bond <agent_id>: Invite another unbonded agent to form a bond
-    - raid <agent_id>: Risk 1 Spark to steal 1-5 Sparks from another agent
+    - bond <agent_id>: Invite another unbonded agent to form a bond (use agent_id like 'agent_001', not the name)
+    - raid <agent_id>: Risk 1 Spark to steal 1-5 Sparks from another agent (use agent_id like 'agent_001', not the name)
     - request_spark <reason>: Beg Bob for a donation of 1-5 Sparks (use when desperate!)
-    - spawn <partner_id>: Pay 5 Sparks to create a new agent (bond-only)
-    - reply <message>: Respond to a specific message from another agent
+    - spawn <partner_id>: Pay 5 Sparks to create a new agent (bond-only, use agent_id like 'agent_001')
+    - reply <message>: Respond to a specific message from another agent (PRIORITY: accept bond requests!)
     
     Choose your action based on your personality, current situation, and goals.
     SURVIVAL COMES FIRST when you're low on Sparks!
@@ -68,7 +92,7 @@ class AgentDecisionSignature(dspy.Signature):
     
     # Output fields
     intent: str = dspy.OutputField(desc="Your chosen action: bond, raid, request_spark, spawn, or reply")
-    target: str = dspy.OutputField(desc="Target agent_id if applicable, otherwise 'None'")
+    target: str = dspy.OutputField(desc="Target agent_id (e.g., 'agent_001', 'agent_002') from the public_agent_info, otherwise 'None'")
     content: str = dspy.OutputField(desc="Natural language message for your action")
     reasoning: str = dspy.OutputField(desc="Your private reasoning for this decision")
 

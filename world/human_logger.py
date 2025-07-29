@@ -133,66 +133,119 @@ class HumanLogger:
         print(f"📖 TICK {result.tick} EVENTS")
         print(f"{'='*80}")
         
-        # Log mission meetings (if any)
-        if hasattr(world_state, 'mission_meeting_messages') and world_state.mission_meeting_messages:
-            self._log_mission_meetings(world_state.mission_meeting_messages, world_state)
-        
-        # Log Storyteller narrative (if available)
-        if hasattr(world_state, 'storyteller_output') and world_state.storyteller_output:
-            self._log_storyteller_narrative(world_state.storyteller_output)
-        
-        # Log spark minting
+        # 1. FIRST: Spark minting from bonds (Stage 1)
         if result.total_sparks_minted > 0:
             self._log_spark_minting(result, world_state)
         
-        # Log Bob's decisions
+        # 2. SECOND: Bob's decisions from previous tick (Stage 2)
         bob_donations = [e for e in result.events_logged if e['event_type'] == 'bob_donation']
         if bob_donations:
             self._log_bob_donations(bob_donations, world_state)
         
-        # Log agent actions and reasoning
+        # 3. THIRD: Mission meetings (happen first in Stage 3)
+        if hasattr(world_state, 'mission_meeting_messages') and world_state.mission_meeting_messages:
+            self._log_mission_meetings(world_state.mission_meeting_messages, world_state)
+        
+        # 4. FOURTH: Agent decisions (Stage 3, after mission meetings)
         if hasattr(world_state, 'pending_actions') and world_state.pending_actions:
             self._log_agent_actions(world_state.pending_actions, world_state)
         
-        # Log spark distribution
+        # 5. FIFTH: Spark distribution (Stage 4)
         if result.total_sparks_minted > 0:
             self._log_spark_distribution(result, world_state)
         
-        # Log upkeep costs (cost of existence)
+        # 6. SIXTH: Upkeep costs (Stage 5, first part)
         if result.total_sparks_lost > 0:
             self._log_upkeep_costs(result, world_state)
         
-        # Log bond requests
+        # 7. SEVENTH: Action consequences (Stage 5, after upkeep)
+        self._log_action_consequences(result, world_state)
+        
+        # 8. EIGHTH: Storyteller narrative (Stage 6)
+        if hasattr(world_state, 'storyteller_output') and world_state.storyteller_output:
+            self._log_storyteller_narrative(world_state.storyteller_output)
+    
+    def _log_action_consequences(self, result: TickResult, world_state: WorldState):
+        """Log the consequences of all actions that happen after upkeep."""
+        print(f"\n⚡ ACTION CONSEQUENCES")
+        print(f"{'─'*60}")
+        
+        # Bond formations (from pending bond requests)
+        if result.bonds_formed:
+            print(f"\n🤝 BONDS FORMED")
+            for bond_id in result.bonds_formed:
+                bond = world_state.bonds[bond_id]
+                member_names = [world_state.agents[member_id].name for member_id in bond.members]
+                print(f"   {', '.join(member_names)} formed a bond!")
+        
+        # Bond requests (pending for next tick)
         bond_requests = [e for e in result.events_logged if e['event_type'] == 'bond_request']
         if bond_requests:
-            self._log_bond_requests(bond_requests, world_state)
+            print(f"\n💌 BOND REQUESTS")
+            for request in bond_requests:
+                requester_id = request['data']['requester_id']
+                target_id = request['data']['target_id']
+                content = request['data']['content']
+                
+                requester = world_state.agents[requester_id]
+                target = world_state.agents[target_id]
+                
+                print(f"   💌 {requester.name} → {target.name}")
+                print(f"      \"{content}\"")
         
-        # Log raids
+        # Raids (processed after upkeep)
         raids = [e for e in result.events_logged if e['event_type'] == 'raid']
         if raids:
-            self._log_raids(raids, world_state)
+            print(f"\n⚔️  RAIDS")
+            for raid in raids:
+                data = raid['data']
+                attacker_id = data['attacker_id']
+                defender_id = data['defender_id']
+                success = data['success']
+                sparks_transferred = data['sparks_transferred']
+                
+                attacker = world_state.agents[attacker_id]
+                defender = world_state.agents[defender_id]
+                
+                if success:
+                    print(f"   ⚔️  {attacker.name} successfully raids {defender.name}!")
+                    print(f"   💰 {sparks_transferred} sparks stolen")
+                else:
+                    print(f"   🛡️  {attacker.name} raids {defender.name} but fails!")
+                    print(f"   💪 {defender.name} gains 1 spark")
         
-        # Log failed raid attempts
+        # Failed raid attempts
         failed_raids = [e for e in result.events_logged if e['event_type'] == 'raid_failed_no_sparks']
         if failed_raids:
-            self._log_failed_raid_attempts(failed_raids, world_state)
+            print(f"\n❌ FAILED RAID ATTEMPTS")
+            for raid in failed_raids:
+                data = raid['data']
+                attacker_id = data['attacker_id']
+                defender_id = data['defender_id']
+                
+                attacker = world_state.agents[attacker_id]
+                defender = world_state.agents[defender_id]
+                
+                print(f"   💀 {attacker.name} tries to raid {defender.name} but has no sparks to risk!")
         
-        # Log agent changes
+        # Agent changes (after all processing)
         if result.agents_vanished:
-            self._log_agent_vanishing(result.agents_vanished, world_state)
+            print(f"\n💀 MINDS FADE AWAY")
+            for agent_id in result.agents_vanished:
+                agent = world_state.agents[agent_id]
+                print(f"   💨 {agent.name} runs out of sparks and vanishes...")
         
         if result.agents_spawned:
-            self._log_agent_spawning(result.agents_spawned, world_state)
+            print(f"\n✨ NEW MINDS EMERGE")
+            for agent_id in result.agents_spawned:
+                agent = world_state.agents[agent_id]
+                print(f"   🌟 {agent.name} is born with 5 sparks!")
         
-        # Log bond changes
-        if result.bonds_formed:
-            self._log_bond_formation(result.bonds_formed, world_state)
-        
+        # Bond dissolutions
         if result.bonds_dissolved:
-            self._log_bond_dissolution(result.bonds_dissolved, world_state)
-        
-        # Show final status
-        self._log_final_status(result, world_state)
+            print(f"\n💔 BONDS BREAK")
+            for bond_id in result.bonds_dissolved:
+                print(f"   💔 A bond dissolves...")
     
     def _log_mission_meetings(self, meeting_messages: List, world_state: WorldState):
         """Log mission meetings with structured flow."""
@@ -324,56 +377,6 @@ class HumanLogger:
             if agent.status.value == "alive":
                 print(f"   ⚡ {agent.name} loses 1 spark")
     
-    def _log_bond_requests(self, bond_requests: List[Dict], world_state: WorldState):
-        """Log bond requests as conversations."""
-        print(f"\n🤝 BOND REQUESTS")
-        
-        for request in bond_requests:
-            requester_id = request['data']['requester_id']
-            target_id = request['data']['target_id']
-            content = request['data']['content']
-            
-            requester = world_state.agents[requester_id]
-            target = world_state.agents[target_id]
-            
-            print(f"   💌 {requester.name} → {target.name}")
-            print(f"      \"{content}\"")
-    
-    def _log_raids(self, raids: List[Dict], world_state: WorldState):
-        """Log raids as dramatic confrontations."""
-        print(f"\n⚔️  RAIDS")
-        
-        for raid in raids:
-            data = raid['data']
-            attacker_id = data['attacker_id']
-            defender_id = data['defender_id']
-            success = data['success']
-            sparks_transferred = data['sparks_transferred']
-            
-            attacker = world_state.agents[attacker_id]
-            defender = world_state.agents[defender_id]
-            
-            if success:
-                print(f"   ⚔️  {attacker.name} raids {defender.name} successfully!")
-                print(f"   💰 {sparks_transferred} sparks stolen")
-            else:
-                print(f"   🛡️  {attacker.name} raids {defender.name} but fails!")
-                print(f"   💪 {defender.name} gains 1 spark")
-    
-    def _log_failed_raid_attempts(self, failed_raids: List[Dict], world_state: WorldState):
-        """Log failed raid attempts due to insufficient sparks."""
-        print(f"\n❌ FAILED RAID ATTEMPTS")
-        
-        for raid in failed_raids:
-            data = raid['data']
-            attacker_id = data['attacker_id']
-            defender_id = data['defender_id']
-            
-            attacker = world_state.agents[attacker_id]
-            defender = world_state.agents[defender_id]
-            
-            print(f"   💀 {attacker.name} tries to raid {defender.name} but has no sparks to risk!")
-    
     def _log_bob_donations(self, donations: List[Dict], world_state: WorldState):
         """Log Bob's generosity."""
         print(f"\n🎁 BOB'S GENEROSITY")
@@ -387,60 +390,6 @@ class HumanLogger:
             recipient = world_state.agents[recipient_id]
             print(f"   🎁 Bob grants {amount} sparks to {recipient.name}")
             print(f"   💭 \"{reason}\"")
-    
-    def _log_agent_vanishing(self, vanished_ids: List[str], world_state: WorldState):
-        """Log agent vanishing as dramatic moments."""
-        print(f"\n💀 MINDS FADE AWAY")
-        
-        for agent_id in vanished_ids:
-            agent = world_state.agents[agent_id]
-            print(f"   💨 {agent.name} runs out of sparks and vanishes...")
-    
-    def _log_agent_spawning(self, spawned_ids: List[str], world_state: WorldState):
-        """Log new agent creation as magical moments."""
-        print(f"\n✨ NEW MINDS EMERGE")
-        
-        for agent_id in spawned_ids:
-            agent = world_state.agents[agent_id]
-            print(f"   🌟 {agent.name} is born with 5 sparks!")
-    
-    def _log_bond_formation(self, bond_ids: List[str], world_state: WorldState):
-        """Log bond formation as friendship moments."""
-        print(f"\n🤝 FRIENDSHIPS BLOSSOM")
-        
-        for bond_id in bond_ids:
-            bond = world_state.bonds[bond_id]
-            member_names = [world_state.agents[member_id].name for member_id in bond.members]
-            
-            print(f"   💕 {', '.join(member_names)} form a bond!")
-    
-    def _log_bond_dissolution(self, bond_ids: List[str], world_state: WorldState):
-        """Log bond dissolution as sad moments."""
-        print(f"\n💔 BONDS BREAK")
-        
-        for bond_id in bond_ids:
-            print(f"   💔 A bond dissolves...")
-    
-    def _log_spark_generation(self, result: TickResult, world_state: WorldState):
-        """Log spark generation as magical moments."""
-        print(f"\n✨ SPARKS OF FRIENDSHIP")
-        print(f"   Bonds generate {result.total_sparks_minted} new sparks!")
-        print(f"   Sparks distributed randomly among bond members")
-    
-    def _log_final_status(self, result: TickResult, world_state: WorldState):
-        """Log final status in human terms."""
-        # Note: This method is kept for compatibility but the actual tick summary
-        # is handled by the interactive simulation to avoid duplication
-        
-        alive_agents = [a for a in world_state.agents.values() if a.status.value == "alive"]
-        total_sparks = sum(agent.sparks for agent in alive_agents)
-        
-        # Show any urgent situations
-        low_spark_agents = [a for a in alive_agents if a.sparks <= 2]
-        if low_spark_agents:
-            print(f"\n⚠️  MINDS IN DANGER:")
-            for agent in low_spark_agents:
-                print(f"   🔴 {agent.name}: {agent.sparks} sparks remaining")
     
     def log_simulation_end(self, final_tick: int, world_state: WorldState):
         """Log the end of simulation."""
@@ -463,7 +412,7 @@ class HumanLogger:
             for agent in alive_agents:
                 print(f"   ✨ {agent.name} - {agent.sparks} sparks, age {agent.age}")
         
-        print(f"\n🌟 Thank you for experiencing {self.simulation_name}! 🌟")
+        print(f"\n🌟 Thank you for experiencing Spark-World! 🌟")
     
     def log_game_mechanics_explanation(self):
         """Log an explanation of how Spark-World works."""

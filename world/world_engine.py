@@ -283,6 +283,11 @@ class WorldEngine:
         self.world_state.bonds_formed_this_tick = []
         self.world_state.bonds_dissolved_this_tick = []
         
+        # Track this tick's spark generation and loss
+        self.sparks_minted_this_tick = 0
+        self.sparks_lost_this_tick = 0
+        self.raids_attempted_this_tick = 0
+        
         stage_results = {}
         
         # Stage 1: Mint Sparks
@@ -324,37 +329,66 @@ class WorldEngine:
             agents_spawned=self.world_state.agents_spawned_this_tick,
             bonds_formed=self.world_state.bonds_formed_this_tick,
             bonds_dissolved=self.world_state.bonds_dissolved_this_tick,
-            total_sparks_minted=self.world_state.total_sparks_minted,
-            total_sparks_lost=self.world_state.total_sparks_lost,
-            total_raids_attempted=self.world_state.total_raids_attempted,
+            total_sparks_minted=self.sparks_minted_this_tick,  # Use this tick's amount, not cumulative
+            total_sparks_lost=self.sparks_lost_this_tick,
+            total_raids_attempted=self.raids_attempted_this_tick,
             agent_actions=getattr(self, 'agent_actions_for_logging', [])  # Use stored copy for logging
         )
         
         return result
     
     def _stage_1_mint_sparks(self) -> str:
-        """Stage 1: Calculate spark generation for all bonds."""
-        total_minted = 0
+        """Stage 1: Apply upkeep costs and mint sparks from bonds."""
+        # Apply upkeep costs FIRST (before any other actions)
+        vanished_count = 0
+        total_upkeep = 0
         
-        for bond in self.world_state.bonds.values():
-            if len(bond.members) >= 2:  # Only bonds with 2+ members generate sparks
-                # Calculate sparks using formula: floor(n + (n-1) × 0.5)
-                n = len(bond.members)
-                sparks = math.floor(n + (n - 1) * 0.5)
-                bond.sparks_generated_this_tick = sparks
-                total_minted += sparks
+        for agent_id, agent in list(self.world_state.agents.items()):
+            if agent.status == AgentStatus.ALIVE:
+                agent.sparks -= 1
+                agent.age += 1
+                total_upkeep += 1
                 
-                # Log spark minting event
+                # Log upkeep transaction
                 self._log_spark_transaction(
-                    from_entity="bond",
-                    to_entity="bond_pool",
-                    amount=sparks,
-                    transaction_type="bond_minting",
-                    reason=f"Bond of {n} agents generated {sparks} sparks"
+                    from_entity=agent_id,
+                    to_entity="upkeep",
+                    amount=1,
+                    transaction_type="upkeep",
+                    reason="Cost of existence"
                 )
+                
+                # Check for vanishing
+                if agent.sparks <= 0:
+                    self._handle_agent_vanishing(agent_id)
+                    vanished_count += 1
         
+        self.world_state.total_sparks_lost += total_upkeep
+        
+        # Store this tick's spark loss (for TickResult)
+        self.sparks_lost_this_tick = total_upkeep
+        
+        # Mint sparks from bonds
+        total_minted = 0
+        for bond in self.world_state.bonds.values():
+            # Each bond generates 1 spark per member per tick
+            sparks_generated = len(bond.members)
+            bond.sparks_generated_this_tick = sparks_generated
+            total_minted += sparks_generated
+            
+            # Log spark minting
+            self._log_spark_transaction(
+                from_entity="bond_pool",
+                to_entity="minting",
+                amount=sparks_generated,
+                transaction_type="bond_minting",
+                reason=f"Bond {bond.bond_id} generated {sparks_generated} sparks"
+            )
+        
+        # Store this tick's minted sparks (for TickResult) and also accumulate to world state
+        self.sparks_minted_this_tick = total_minted
         self.world_state.total_sparks_minted += total_minted
-        return f"Minted {total_minted} sparks from {len(self.world_state.bonds)} bonds"
+        return f"Applied {total_upkeep} upkeep costs ({vanished_count} vanished), minted {total_minted} sparks from bonds"
     
     def _stage_2_bob_decides(self) -> str:
         """Stage 2: Bob processes spark requests from previous tick."""
@@ -466,36 +500,11 @@ class WorldEngine:
         return f"Distributed {total_distributed} sparks randomly within bonds"
     
     def _stage_5_upkeep_and_vanishings(self) -> str:
-        """Stage 5: Apply upkeep costs and handle vanishings."""
-        vanished_count = 0
-        total_upkeep = 0
-        
-        # Apply upkeep costs
-        for agent_id, agent in list(self.world_state.agents.items()):
-            if agent.status == AgentStatus.ALIVE:
-                agent.sparks -= 1
-                agent.age += 1
-                total_upkeep += 1
-                
-                # Log upkeep transaction
-                self._log_spark_transaction(
-                    from_entity=agent_id,
-                    to_entity="upkeep",
-                    amount=1,
-                    transaction_type="upkeep",
-                    reason="Cost of existence"
-                )
-                
-                # Check for vanishing
-                if agent.sparks <= 0:
-                    self._handle_agent_vanishing(agent_id)
-                    vanished_count += 1
-        
+        """Stage 5: Process pending actions and handle any remaining vanishings."""
         # Process pending actions (bond requests, spawns, raids)
         self._process_pending_actions()
         
-        self.world_state.total_sparks_lost += total_upkeep
-        return f"Applied {total_upkeep} upkeep costs, {vanished_count} agents vanished"
+        return f"Processed pending actions"
     
     def _conduct_mission_meetings(self):
         """Conduct mission meetings for all active missions."""
@@ -627,7 +636,7 @@ class WorldEngine:
                     inbox=inbox,
                     world_news=world_news,
                     mission_status=mission_status,
-                    available_actions=["bond", "raid", "request_spark", "spawn", "reply"]
+                    available_actions=["bond", "raid", "request_spark", "spawn", "message"]
                 )
                 
                 packets[agent_id] = packet
@@ -642,24 +651,49 @@ class WorldEngine:
     
     def _create_world_news(self) -> WorldNews:
         """Create world news for all agents."""
+        # Count living agents
+        living_agents = [agent for agent in self.world_state.agents.values() if agent.status == AgentStatus.ALIVE]
+        
+        # Count bonds
+        active_bonds = len(self.world_state.bonds)
+        
+        # Get recent events
+        agents_vanished = []
+        agents_spawned = []
+        bonds_formed = []
+        bonds_dissolved = []
+        
+        for event in self.world_state.events_this_tick:
+            if event.get('event_type') == 'agent_vanished':
+                agent_name = self.world_state.agents[event['data']['agent_id']].name
+                agents_vanished.append(agent_name)
+            elif event.get('event_type') == 'agent_spawned':
+                agent_name = self.world_state.agents[event['data']['agent_id']].name
+                agents_spawned.append(agent_name)
+            elif event.get('event_type') == 'bond_formed':
+                bonds_formed.append(event['data']['bond_id'])
+            elif event.get('event_type') == 'bond_dissolved':
+                bonds_dissolved.append(event['data']['bond_id'])
+        
+        # Create public agent info (RESTRICTED - only basic info)
         public_agent_info = {}
-        for agent_id, agent in self.world_state.agents.items():
-            public_agent_info[agent_id] = {
-                "name": agent.name,
-                "species": agent.species,
-                "home_realm": agent.home_realm,
-                "sparks": agent.sparks,  # Add spark levels for strategic decisions
-                "bond_status": agent.bond_status.value  # Add bond status for strategic decisions
+        for agent in living_agents:
+            # Only show basic info - agents must discover details through messaging
+            public_agent_info[agent.agent_id] = {
+                'name': agent.name,
+                'species': agent.species,
+                'realm': agent.home_realm,
+                # REMOVED: sparks, bond_status - agents must discover this through interaction
             }
         
         return WorldNews(
             tick=self.world_state.tick,
-            total_agents=len(self.world_state.agents),
-            total_bonds=len(self.world_state.bonds),
-            agents_vanished_this_tick=self.world_state.agents_vanished_this_tick,
-            agents_spawned_this_tick=self.world_state.agents_spawned_this_tick,
-            bonds_formed_this_tick=self.world_state.bonds_formed_this_tick,
-            bonds_dissolved_this_tick=self.world_state.bonds_dissolved_this_tick,
+            total_agents=len(living_agents),
+            total_bonds=active_bonds,
+            agents_vanished_this_tick=agents_vanished,
+            agents_spawned_this_tick=agents_spawned,
+            bonds_formed_this_tick=bonds_formed,
+            bonds_dissolved_this_tick=bonds_dissolved,
             public_agent_info=public_agent_info
         )
     
@@ -705,8 +739,8 @@ class WorldEngine:
                 self._handle_raid_action(action)
             elif action.intent == "spawn":
                 self._handle_spawn_request(action)
-            elif action.intent == "reply":
-                self._handle_reply_action(action)
+            elif action.intent == "message":
+                self._handle_message_action(action)
             elif action.intent == "request_spark":
                 # Store for Bob's decision in next tick
                 self.world_state.pending_spark_requests.append(action)
@@ -832,11 +866,34 @@ class WorldEngine:
             }
         )
     
+    def _clean_target_field(self, target: str) -> str:
+        """Clean target field to extract just the agent_id, removing comments and reasoning."""
+        if not target:
+            return None
+        # Remove comments and reasoning, keep only the agent_id
+        clean_target = target.split('#')[0].split('because')[0].split(' - ')[0].split(' (')[0].strip()
+        return clean_target if clean_target else None
+
     def _handle_bond_request(self, action: ActionMessage):
-        """Handle a bond request (two-step process)."""
-        if action.target and action.target in self.world_state.agents:
-            # Store request for next tick processing
-            self.world_state.pending_bond_requests[action.target] = action
+        """Handle a bond request action."""
+        if not action.target:
+            return  # Invalid bond request
+        
+        requester_id = action.agent_id
+        target_id = self._clean_target_field(action.target)
+        
+        if not target_id:
+            return  # Invalid target after cleaning
+        
+        # Check if both agents are alive and target is unbonded
+        if (requester_id in self.world_state.agents and 
+            target_id in self.world_state.agents and
+            self.world_state.agents[requester_id].status == AgentStatus.ALIVE and
+            self.world_state.agents[target_id].status == AgentStatus.ALIVE and
+            self.world_state.agents[target_id].bond_status == BondStatus.UNBONDED):  # Only target must be unbonded
+            
+            # Store the bond request for the target to respond to
+            self.world_state.pending_bond_requests[target_id] = action
             
             # Log bond request event
             self._log_event(
@@ -844,17 +901,26 @@ class WorldEngine:
                 tick=self.world_state.tick,
                 event_type="bond_request",
                 data={
-                    "requester_id": action.agent_id,
-                    "target_id": action.target,
-                    "content": action.content
+                    "requester_id": requester_id,
+                    "target_id": target_id,
+                    "message": action.content
                 }
             )
+        else:
+            # Log invalid bond request
+            requester = self.world_state.agents.get(requester_id)
+            target = self.world_state.agents.get(target_id)
+            
+            if requester and target:
+                if target.bond_status != BondStatus.UNBONDED:
+                    print(f"DEBUG: {requester.name} tried to bond with {target.name} who is already bonded")
     
     def _handle_raid_action(self, action: ActionMessage):
         """Handle a raid action."""
-        if action.target and action.target in self.world_state.agents:
+        target_id = self._clean_target_field(action.target)
+        if target_id and target_id in self.world_state.agents:
             attacker = self.world_state.agents[action.agent_id]
-            defender = self.world_state.agents[action.target]
+            defender = self.world_state.agents[target_id]
             
             # Check if attacker has enough sparks to risk (needs at least 1 spark)
             if attacker.sparks < 1:
@@ -865,7 +931,7 @@ class WorldEngine:
                     event_type="raid_failed_no_sparks",
                     data={
                         "attacker_id": action.agent_id,
-                        "defender_id": action.target,
+                        "defender_id": target_id,
                         "reason": "Attacker has no sparks to risk"
                     }
                 )
@@ -889,7 +955,7 @@ class WorldEngine:
                 
                 # Log spark transaction for successful raid
                 self._log_spark_transaction(
-                    from_entity=action.target,
+                    from_entity=target_id,
                     to_entity=action.agent_id,
                     amount=steal_amount,
                     transaction_type="raid_success",
@@ -904,7 +970,7 @@ class WorldEngine:
                 # Log spark transaction for failed raid
                 self._log_spark_transaction(
                     from_entity=action.agent_id,
-                    to_entity=action.target,
+                    to_entity=target_id,
                     amount=1,
                     transaction_type="raid_failure",
                     reason=f"Failed raid: {attacker_strength} vs {defender_strength} strength"
@@ -913,7 +979,7 @@ class WorldEngine:
             # Create raid result
             raid_result = RaidResult(
                 attacker_id=action.agent_id,
-                defender_id=action.target,
+                defender_id=target_id,
                 success=success,
                 attacker_strength=attacker_strength,
                 defender_strength=defender_strength,
@@ -930,6 +996,9 @@ class WorldEngine:
             )
             
             self.world_state.total_raids_attempted += 1
+            
+            # Store this tick's raid attempt (for TickResult)
+            self.raids_attempted_this_tick += 1
     
     def _handle_spawn_request(self, action: ActionMessage):
         """Handle a spawn request."""
@@ -962,22 +1031,22 @@ class WorldEngine:
                 }
             )
     
-    def _handle_reply_action(self, action: ActionMessage):
-        """Handle a reply action."""
+    def _handle_message_action(self, action: ActionMessage):
+        """Handle a message action."""
         # Add to message queue for target agent
-        if action.target:
-            if action.target not in self.world_state.message_queue:
-                self.world_state.message_queue[action.target] = []
-            self.world_state.message_queue[action.target].append(action)
+        target_id = self._clean_target_field(action.target)
+        if target_id:
+            if target_id not in self.world_state.message_queue:
+                self.world_state.message_queue[target_id] = []
+            self.world_state.message_queue[target_id].append(action)
             
             # Check if this is a reply to a bond request (bond acceptance)
             # If the target agent has a pending bond request from this agent, form the bond
-            if (action.target in self.world_state.pending_bond_requests and 
-                self.world_state.pending_bond_requests[action.target].agent_id == action.agent_id):
+            if (target_id in self.world_state.pending_bond_requests and 
+                self.world_state.pending_bond_requests[target_id].agent_id == action.agent_id):
                 
                 # This is a bond acceptance - form the bond immediately
                 requester_id = action.agent_id
-                target_id = action.target
                 
                 # Check if both agents are still alive and unbonded
                 if (requester_id in self.world_state.agents and 

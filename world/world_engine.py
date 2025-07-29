@@ -20,7 +20,7 @@ from agents.agent_decision import AgentDecisionModule
 from storytelling.storyteller import Storyteller
 from storytelling.storyteller_structures import StorytellerInput
 from agents.bob_decision import BobDecisionModule
-from character_designer.shard_sower_dspy import ShardSowerModule
+from character_designer.simple_diverse_sower import SimpleDiverseSower
 from communication.messages.action_message import ActionMessage
 from communication.messages.observation_packet import ObservationPacket, AgentState, Event, WorldNews, MissionStatus
 from communication.messages.mission_meeting_message import MissionMeetingMessage
@@ -64,7 +64,7 @@ class WorldEngine:
         # DSPy modules
         self.agent_decision_module = AgentDecisionModule()
         self.bob_decision_module = BobDecisionModule()
-        self.shard_sower_module = ShardSowerModule()
+        self.shard_sower_module = SimpleDiverseSower()
         self.mission_system = MissionSystem()
         self.mission_meeting_coordinator = MissionMeetingCoordinator()
         self.storyteller = Storyteller(personality="blip")  # Default personality

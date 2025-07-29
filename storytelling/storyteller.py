@@ -167,47 +167,64 @@ class Storyteller:
         Returns:
             StorytellerOutput: The introduction narrative
         """
-        # Prepare world description
-        world_description = (
-            "Spark-World is a place where life is made of energy called Sparks. "
-            "Every mind needs one Spark each turn to stay alive. Sparks come from making friends "
-            "with other minds, or can be stolen in raids, or asked for from Bob. "
-            "It's a world about making friends, staying alive, and choosing between helping others or fighting them."
-        )
-        
-        # Prepare agent information
-        agents_info = []
-        for agent in world_state.agents.values():
-            agent_info = (
-                f"{agent.name} ({agent.species}) - "
-                f"Personality: {', '.join(agent.personality)} - "
-                f"Quirk: {agent.quirk} - "
-                f"Goal: {agent.opening_goal} - "
-                f"Backstory: {agent.backstory}"
+        try:
+            # Prepare world description
+            world_description = (
+                "Spark-World is a place where life is made of energy called Sparks. "
+                "Every mind needs one Spark each turn to stay alive. Sparks come from making friends "
+                "with other minds, or can be stolen in raids, or asked for from Bob. "
+                "It's a world about making friends, staying alive, and choosing between helping others or fighting them."
             )
-            agents_info.append(agent_info)
-        
-        agents_text = "\n".join(agents_info)
-        
-        # Generate introduction using DSPy
-        intro_output = self.introduction_generator(
-            storyteller_personality=self.personality_prompts[self.personality]["description"],
-            world_description=world_description,
-            agents_info=agents_text
-        )
-        
-        # Create comprehensive narrative
-        full_introduction = f"{intro_output.world_introduction}\n\n{intro_output.character_introductions}"
-        
-        return StorytellerOutput(
-            tick=0,
-            chapter_title="The Beginning",
-            narrative_text=full_introduction,
-            character_insights=[],
-            emotional_arcs=[],
-            themes_explored=[intro_output.opening_theme],
-            storyteller_voice=self.personality_prompts[self.personality]["description"]
-        )
+            
+            # Prepare agent information
+            agents_info = []
+            for agent in world_state.agents.values():
+                agent_info = (
+                    f"{agent.name} ({agent.species}) - "
+                    f"Personality: {', '.join(agent.personality)} - "
+                    f"Quirk: {agent.quirk} - "
+                    f"Goal: {agent.opening_goal} - "
+                    f"Backstory: {agent.backstory}"
+                )
+                agents_info.append(agent_info)
+            
+            agents_text = "\n".join(agents_info)
+            
+            # Generate introduction using DSPy
+            intro_output = self.introduction_generator(
+                storyteller_personality=self.personality_prompts[self.personality]["description"],
+                world_description=world_description,
+                agents_info=agents_text
+            )
+            
+            # Create comprehensive narrative
+            full_introduction = f"{intro_output.world_introduction}\n\n{intro_output.character_introductions}"
+            
+            return StorytellerOutput(
+                tick=0,  # Introduction is at tick 0
+                chapter_title="The Beginning",
+                narrative_text=full_introduction,  # Use the full introduction with characters
+                character_insights=[],
+                emotional_arcs=[],
+                themes_explored=[],
+                storyteller_voice=self.personality.title()  # Just use the name, not full description
+            )
+            
+        except Exception as e:
+            print(f"ERROR in introduce_game: {e}")
+            import traceback
+            traceback.print_exc()
+            
+            # Return a fallback narrative
+            return StorytellerOutput(
+                tick=0,  # Introduction is at tick 0
+                chapter_title="The Beginning",
+                narrative_text="Welcome to Spark-World, where energy dances and life bursts in vibrant colors!",
+                character_insights=[],
+                emotional_arcs=[],
+                themes_explored=[],
+                storyteller_voice=self.personality.title()
+            )
     
     def create_chapter(self, input_data: StorytellerInput) -> StorytellerOutput:
         """
@@ -279,7 +296,7 @@ class Storyteller:
             character_insights=character_insights,
             emotional_arcs=emotional_arcs,
             themes_explored=themes_explored,
-            storyteller_voice=self.personality_prompts[self.personality]["description"]
+            storyteller_voice=self.personality.title()  # Just use the name, not full description
         )
         
         # Add to story history

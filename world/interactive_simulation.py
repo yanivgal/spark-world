@@ -34,6 +34,9 @@ def run_interactive_simulation(num_agents: int = 3, num_ticks: int = 10, storyte
         print("🚀 Initializing Spark-World...")
         engine = WorldEngine(db_path=db_path)
         
+        # Reset all modules for fresh character generation
+        engine.reset_all_modules()
+        
         # Set storyteller personality
         engine.storyteller.personality = storyteller_personality
         

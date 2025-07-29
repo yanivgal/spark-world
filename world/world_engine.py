@@ -190,8 +190,26 @@ class WorldEngine:
             self.world_state = WorldState()
             self.storyteller.story_history = []
             
-            print("🗑️  Database reset complete - starting fresh!")
+            # Reset Shard-Sower for fresh character generation
+            self.shard_sower_module.reset()
     
+    def reset_all_modules(self):
+        """Reset all modules for a completely fresh simulation start."""
+        # Reset Shard-Sower
+        self.shard_sower_module.reset()
+        
+        # Reset Storyteller
+        self.storyteller.story_history = []
+        
+        # Reset pending actions
+        self.pending_bond_requests.clear()
+        self.pending_spawn_requests.clear()
+        self.mission_meeting_messages.clear()
+        self.events_this_tick.clear()
+        
+        # Reset world state
+        self.world_state = WorldState()
+        
     def initialize_world(self, num_agents: int = 3, simulation_name: str = "Spark-World Simulation") -> int:
         """
         Initialize a new Spark-World simulation.

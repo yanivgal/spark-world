@@ -278,10 +278,15 @@ class WorldEngine:
         # Clear tick-specific data
         self.events_this_tick = []
         self.world_state.events_this_tick = []
+        self.world_state.agent_actions_for_logging = []  # Clear logged agent actions
+        self.world_state.raid_results_this_tick = []
+        self.world_state.spark_transactions_this_tick = []
+        self.world_state.bob_responses_this_tick = []
         self.world_state.agents_vanished_this_tick = []
         self.world_state.agents_spawned_this_tick = []
         self.world_state.bonds_formed_this_tick = []
         self.world_state.bonds_dissolved_this_tick = []
+        self.world_state.bond_requests_for_display = {}  # Clear display bond requests
         
         # Track this tick's spark generation and loss
         self.sparks_minted_this_tick = 0
@@ -332,7 +337,7 @@ class WorldEngine:
             total_sparks_minted=self.sparks_minted_this_tick,  # Use this tick's amount, not cumulative
             total_sparks_lost=self.sparks_lost_this_tick,
             total_raids_attempted=self.raids_attempted_this_tick,
-            agent_actions=getattr(self, 'agent_actions_for_logging', [])  # Use stored copy for logging
+            agent_actions=self.world_state.agent_actions_for_logging  # Use stored actions for logging
         )
         
         return result
@@ -407,6 +412,9 @@ class WorldEngine:
             request_messages=spark_requests
         )
         
+        # Store Bob responses in memory for Storyteller
+        self.world_state.bob_responses_this_tick = bob_responses
+        
         # Apply Bob's decisions
         total_granted = 0
         for response in bob_responses:
@@ -449,28 +457,34 @@ class WorldEngine:
         return f"Bob granted {total_granted} sparks to {len([r for r in bob_responses if r.sparks_granted > 0])} agents"
     
     def _stage_3_agents_act(self) -> str:
-        """Stage 3: Generate observation packets and collect agent actions."""
+        """Stage 3: All agents make their decisions and take actions."""
         # Conduct mission meetings first (pre-tick phase)
         self._conduct_mission_meetings()
         
         # Generate observation packets for all agents
         observation_packets = self._generate_observation_packets()
         
-        # Collect actions from all living agents
+        # Collect actions from all agents
         agent_actions = []
-        for agent_id, agent in self.world_state.agents.items():
-            if agent.status == AgentStatus.ALIVE:
-                observation = observation_packets[agent_id]
-                action = self.agent_decision_module.decide_action(agent_id, observation)
-                agent_actions.append(action)
+        for agent_id, packet in observation_packets.items():
+            action = self.agent_decision_module.decide_action(agent_id, packet)
+            agent_actions.append(action)
         
-        # Store actions for processing in later stages
+        # Store actions for processing
         self.world_state.pending_actions = agent_actions
         
         # Store actions for logging (before they get processed and cleared)
-        self.agent_actions_for_logging = agent_actions.copy()
+        self.world_state.agent_actions_for_logging = agent_actions.copy()
         
-        return f"Collected actions from {len(agent_actions)} agents"
+        # Store bond requests for display BEFORE processing them
+        self.world_state.bond_requests_for_display = {}
+        for action in agent_actions:
+            if action.intent == "bond" and action.target:
+                target_id = self._clean_target_field(action.target)
+                if target_id:
+                    self.world_state.bond_requests_for_display[target_id] = action
+        
+        return f"Collected {len(agent_actions)} agent actions"
     
     def _stage_4_distribute_sparks(self) -> str:
         """Stage 4: Distribute minted sparks randomly within bonds."""
@@ -550,9 +564,9 @@ class WorldEngine:
                 storyteller_personality=self.storyteller.personality,
                 world_state=self.world_state,
                 agent_actions=self.world_state.pending_actions.copy(),
-                raid_results=[],  # TODO: Collect from events
-                spark_transactions=[],  # TODO: Collect from events
-                bob_responses=[],  # TODO: Collect from events
+                raid_results=self.world_state.raid_results_this_tick.copy(),  # Use collected raid results
+                spark_transactions=self.world_state.spark_transactions_this_tick.copy(),  # Use collected spark transactions
+                bob_responses=self.world_state.bob_responses_this_tick.copy(), # Use stored Bob responses
                 mission_meeting_messages=self.world_state.mission_meeting_messages.copy(),
                 events_this_tick=self.world_state.events_this_tick.copy(),
                 is_game_start=(self.world_state.tick == 1)
@@ -694,7 +708,8 @@ class WorldEngine:
             agents_spawned_this_tick=agents_spawned,
             bonds_formed_this_tick=bonds_formed,
             bonds_dissolved_this_tick=bonds_dissolved,
-            public_agent_info=public_agent_info
+            public_agent_info=public_agent_info,
+            bob_sparks=self.world_state.bob_sparks
         )
     
     def _get_mission_status(self, agent_id: str) -> Optional[MissionStatus]:
@@ -987,6 +1002,9 @@ class WorldEngine:
                 reasoning=f"Raid {'succeeded' if success else 'failed'} with {attacker_strength} vs {defender_strength} strength"
             )
             
+            # Store raid result in memory for Storyteller
+            self.world_state.raid_results_this_tick.append(raid_result)
+            
             # Log raid event
             self._log_event(
                 simulation_id=1,  # TODO: Get from context
@@ -1125,12 +1143,25 @@ class WorldEngine:
     
     def _log_spark_transaction(self, from_entity: str, to_entity: str, amount: int, 
                               transaction_type: str, reason: str):
-        """Log a spark transaction to the database."""
+        """Log a spark transaction to the database and store in memory for Storyteller."""
+        # Log to database
         with sqlite3.connect(self.db_path) as conn:
             conn.execute(
                 "INSERT INTO spark_transactions (simulation_id, tick, from_entity, to_entity, amount, transaction_type, reason) VALUES (?, ?, ?, ?, ?, ?, ?)",
                 (1, self.world_state.tick, from_entity, to_entity, amount, transaction_type, reason)
             )
+        
+        # Store in memory for Storyteller
+        from world.simulation_mechanics import SparkTransaction
+        transaction = SparkTransaction(
+            from_entity=from_entity,
+            to_entity=to_entity,
+            amount=amount,
+            transaction_type=transaction_type,
+            reason=reason,
+            tick=self.world_state.tick
+        )
+        self.world_state.spark_transactions_this_tick.append(transaction)
     
     def save_state(self, simulation_id: int):
         """Save current world state to database."""

@@ -94,13 +94,18 @@ class WorldState:
     
     # Communication Queues
     pending_actions: List[ActionMessage] = field(default_factory=list)
+    agent_actions_for_logging: List[ActionMessage] = field(default_factory=list)  # Actions for logging (before processing)
     pending_bond_requests: Dict[str, ActionMessage] = field(default_factory=dict)  # target_id -> bond request
+    bond_requests_for_display: Dict[str, ActionMessage] = field(default_factory=dict)  # target_id -> bond request (for display)
     pending_spark_requests: List[ActionMessage] = field(default_factory=list)  # request_spark actions for next tick
     message_queue: Dict[str, List[ActionMessage]] = field(default_factory=dict)  # agent_id -> messages
     mission_meeting_messages: List = field(default_factory=list)  # Mission meeting messages for this tick
     
     # Event Tracking
     events_this_tick: List[Dict] = field(default_factory=list)  # Raw events for Storyteller
+    raid_results_this_tick: List = field(default_factory=list)  # RaidResult objects for Storyteller
+    spark_transactions_this_tick: List = field(default_factory=list)  # SparkTransaction objects for Storyteller
+    bob_responses_this_tick: List = field(default_factory=list)  # BobResponse objects for Storyteller
     agents_vanished_this_tick: List[str] = field(default_factory=list)
     agents_spawned_this_tick: List[str] = field(default_factory=list)
     bonds_formed_this_tick: List[str] = field(default_factory=list)

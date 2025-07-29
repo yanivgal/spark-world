@@ -10,11 +10,35 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from typing import Dict, List, Optional
+import dspy
+from typing import List, Dict, Optional
 from world.state import WorldState, Agent, Bond, Mission
 from world.world_engine import TickResult
 from communication.messages.action_message import ActionMessage
+from character_designer.dspy_init import get_dspy
 
+class IntroductionSignature(dspy.Signature):
+    """
+    Generate a captivating, one-paragraph introduction to Spark-World that immediately hooks the reader.
+    
+    This should be the first thing a human sees when they encounter Spark-World. It needs to be:
+    - Short and punchy (2-3 sentences max)
+    - Immediately engaging and mysterious
+    - Use simple, everyday words that flow naturally
+    - Capture the core essence: life as energy, emergent drama, unique characters
+    - Make the reader want to see what happens next
+    - Avoid fancy words, complex sentences, or flowery language
+    
+    IMPORTANT: Write like you're telling a friend about an exciting new world. Use simple words that everyone understands. Make it feel like the opening of a great story - mysterious, compelling, and easy to read.
+    
+    The tone should be conversational and exciting, not academic or poetic.
+    """
+    
+    num_agents: int = dspy.InputField(desc="Number of agents in this simulation")
+    agent_names: str = dspy.InputField(desc="Names of the agents to mention")
+    agent_species: str = dspy.InputField(desc="Species/types of the agents")
+    
+    introduction: str = dspy.OutputField(desc="A simple, captivating introduction that hooks the reader immediately using everyday words")
 
 class HumanLogger:
     """
@@ -22,22 +46,29 @@ class HumanLogger:
     """
     
     def __init__(self):
-        """Initialize the human logger."""
-        self.simulation_name = "Spark-World"
-        self.tick_count = 0
+        """Initialize the Human Logger."""
+        get_dspy()  # Configure DSPy
+        self.introduction_generator = dspy.Predict(IntroductionSignature)
         self.character_intros_shown = False
+        self.tick_count = 0
     
     def log_simulation_start(self, world_state: WorldState, simulation_name: str = "Spark-World"):
-        """Log the beginning of a new simulation."""
-        self.simulation_name = simulation_name
-        self.tick_count = 0
-        
+        """Log the start of a simulation with a captivating introduction."""
         print(f"\n{'='*80}")
         print(f"🌟 WELCOME TO {simulation_name.upper()} 🌟")
         print(f"{'='*80}")
-        print(f"\nA realm where minds exist as pure energy, seeking connection and survival through bonds.")
-        print(f"Each mind needs sparks to survive, and sparks are created through friendship and cooperation.")
-        print(f"Watch as these unique personalities navigate the challenges of existence together!\n")
+        
+        # Generate dynamic introduction using LLM
+        agent_names = ", ".join([agent.name for agent in world_state.agents.values()])
+        agent_species = ", ".join([agent.species for agent in world_state.agents.values()])
+        
+        intro_result = self.introduction_generator(
+            num_agents=len(world_state.agents),
+            agent_names=agent_names,
+            agent_species=agent_species
+        )
+        
+        print(f"\n{intro_result.introduction}\n")
         
         # Show character introductions
         self._show_character_introductions(world_state)

@@ -39,6 +39,7 @@ class TickResult:
     total_sparks_minted: int
     total_sparks_lost: int
     total_raids_attempted: int
+    agent_actions: List[ActionMessage]  # Actions taken by agents this tick
 
 
 class WorldEngine:
@@ -325,7 +326,8 @@ class WorldEngine:
             bonds_dissolved=self.world_state.bonds_dissolved_this_tick,
             total_sparks_minted=self.world_state.total_sparks_minted,
             total_sparks_lost=self.world_state.total_sparks_lost,
-            total_raids_attempted=self.world_state.total_raids_attempted
+            total_raids_attempted=self.world_state.total_raids_attempted,
+            agent_actions=getattr(self, 'agent_actions_for_logging', [])  # Use stored copy for logging
         )
         
         return result
@@ -430,6 +432,9 @@ class WorldEngine:
         
         # Store actions for processing in later stages
         self.world_state.pending_actions = agent_actions
+        
+        # Store actions for logging (before they get processed and cleared)
+        self.agent_actions_for_logging = agent_actions.copy()
         
         return f"Collected actions from {len(agent_actions)} agents"
     
@@ -607,11 +612,19 @@ class WorldEngine:
                 mission_status = self._get_mission_status(agent_id)
                 
                 # Create observation packet
+                # Include pending bond requests in the inbox
+                inbox = self.world_state.message_queue.get(agent_id, [])
+                
+                # Add any pending bond requests for this agent
+                if agent_id in self.world_state.pending_bond_requests:
+                    bond_request = self.world_state.pending_bond_requests[agent_id]
+                    inbox.append(bond_request)
+                
                 packet = ObservationPacket(
                     tick=self.world_state.tick,
                     self_state=agent_state,
                     events_since_last=events,
-                    inbox=self.world_state.message_queue.get(agent_id, []),
+                    inbox=inbox,
                     world_news=world_news,
                     mission_status=mission_status,
                     available_actions=["bond", "raid", "request_spark", "spawn", "reply"]
@@ -634,7 +647,9 @@ class WorldEngine:
             public_agent_info[agent_id] = {
                 "name": agent.name,
                 "species": agent.species,
-                "home_realm": agent.home_realm
+                "home_realm": agent.home_realm,
+                "sparks": agent.sparks,  # Add spark levels for strategic decisions
+                "bond_status": agent.bond_status.value  # Add bond status for strategic decisions
             }
         
         return WorldNews(
@@ -701,6 +716,8 @@ class WorldEngine:
     
     def _process_pending_bond_requests(self):
         """Process pending bond requests and form bonds."""
+        # First, collect all bond requests by target
+        bond_requests_by_target = {}
         for target_id, request in self.world_state.pending_bond_requests.items():
             requester_id = request.agent_id
             
@@ -712,23 +729,53 @@ class WorldEngine:
                 self.world_state.agents[requester_id].bond_status == BondStatus.UNBONDED and
                 self.world_state.agents[target_id].bond_status == BondStatus.UNBONDED):
                 
-                # Form the bond
-                self._form_bond(requester_id, target_id)
+                if target_id not in bond_requests_by_target:
+                    bond_requests_by_target[target_id] = []
+                bond_requests_by_target[target_id].append(requester_id)
+        
+        # Process bond requests to form fully-connected cliques
+        processed_agents = set()
+        
+        for target_id, requesters in bond_requests_by_target.items():
+            if target_id in processed_agents:
+                continue
+                
+            # Find all agents that want to bond with each other (transitive closure)
+            clique_members = {target_id}
+            to_process = requesters.copy()
+            
+            while to_process:
+                requester_id = to_process.pop(0)
+                if requester_id in processed_agents:
+                    continue
+                    
+                clique_members.add(requester_id)
+                processed_agents.add(requester_id)
+                
+                # Check if this requester also has bond requests (mutual bonding)
+                if requester_id in bond_requests_by_target:
+                    for other_requester in bond_requests_by_target[requester_id]:
+                        if other_requester not in clique_members and other_requester not in processed_agents:
+                            to_process.append(other_requester)
+            
+            # Form the bond with all clique members
+            if len(clique_members) >= 2:
+                self._form_bond_clique(list(clique_members))
         
         # Clear processed bond requests
         self.world_state.pending_bond_requests.clear()
     
-    def _form_bond(self, agent1_id: str, agent2_id: str):
-        """Form a bond between two agents."""
-        agent1 = self.world_state.agents[agent1_id]
-        agent2 = self.world_state.agents[agent2_id]
-        
+    def _form_bond_clique(self, agent_ids: List[str]):
+        """Form a bond between multiple agents (fully-connected clique)."""
+        if len(agent_ids) < 2:
+            return
+            
         # Create bond
         bond_id = f"bond_{len(self.world_state.bonds) + 1:03d}"
         bond = Bond(
             bond_id=bond_id,
-            members={agent1_id, agent2_id},
-            leader_id=agent1_id,  # Requester becomes leader
+            members=set(agent_ids),
+            leader_id=agent_ids[0],  # First agent becomes leader
             mission_id=None
         )
         
@@ -737,11 +784,11 @@ class WorldEngine:
         self.world_state.bonds_formed_this_tick.append(bond_id)
         self.world_state.total_bonds_formed += 1
         
-        # Update agent states
-        agent1.bond_status = BondStatus.BONDED
-        agent1.bond_members = [agent2_id]
-        agent2.bond_status = BondStatus.BONDED
-        agent2.bond_members = [agent1_id]
+        # Update all agent states
+        for agent_id in agent_ids:
+            agent = self.world_state.agents[agent_id]
+            agent.bond_status = BondStatus.BONDED
+            agent.bond_members = [aid for aid in agent_ids if aid != agent_id]  # All other members
         
         # Log bond formation event
         self._log_event(
@@ -750,9 +797,8 @@ class WorldEngine:
             event_type="bond_formed",
             data={
                 "bond_id": bond_id,
-                "agent1_id": agent1_id,
-                "agent2_id": agent2_id,
-                "leader_id": agent1_id
+                "agent_ids": agent_ids,
+                "leader_id": agent_ids[0]
             }
         )
         
@@ -923,6 +969,29 @@ class WorldEngine:
             if action.target not in self.world_state.message_queue:
                 self.world_state.message_queue[action.target] = []
             self.world_state.message_queue[action.target].append(action)
+            
+            # Check if this is a reply to a bond request (bond acceptance)
+            # If the target agent has a pending bond request from this agent, form the bond
+            if (action.target in self.world_state.pending_bond_requests and 
+                self.world_state.pending_bond_requests[action.target].agent_id == action.agent_id):
+                
+                # This is a bond acceptance - form the bond immediately
+                requester_id = action.agent_id
+                target_id = action.target
+                
+                # Check if both agents are still alive and unbonded
+                if (requester_id in self.world_state.agents and 
+                    target_id in self.world_state.agents and
+                    self.world_state.agents[requester_id].status == AgentStatus.ALIVE and
+                    self.world_state.agents[target_id].status == AgentStatus.ALIVE and
+                    self.world_state.agents[requester_id].bond_status == BondStatus.UNBONDED and
+                    self.world_state.agents[target_id].bond_status == BondStatus.UNBONDED):
+                    
+                    # Form the bond
+                    self._form_bond_clique([requester_id, target_id])
+                    
+                    # Remove the processed bond request
+                    del self.world_state.pending_bond_requests[target_id]
     
     def _handle_agent_vanishing(self, agent_id: str):
         """Handle an agent vanishing (sparks <= 0)."""

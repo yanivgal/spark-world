@@ -19,7 +19,7 @@ def get_dspy():
             return _dspy_instance, _lm_instance
         load_dotenv()
         OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
-        _lm_instance = dspy.LM('openai/gpt-4o-mini', api_key=OPENAI_API_KEY, cache=False)
+        _lm_instance = dspy.LM('openai/gpt-4o-mini', api_key=OPENAI_API_KEY, cache=False, temperature=0.9)
         dspy.configure(lm=_lm_instance)
         dspy.settings.configure(track_usage=True)
         _dspy_instance = dspy

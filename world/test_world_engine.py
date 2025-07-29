@@ -132,13 +132,6 @@ def test_world_initialization():
         import traceback
         traceback.print_exc()
         return None, None
-    
-    finally:
-        # Cleanup
-        try:
-            shutil.rmtree(temp_dir)
-        except:
-            pass
 
 
 def test_single_tick(engine: WorldEngine, simulation_id: int, logger: HumanLogger):

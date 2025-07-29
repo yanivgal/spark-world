@@ -89,7 +89,11 @@ def run_interactive_simulation(num_agents: int = 3, num_ticks: int = 10, storyte
             if result.agents_spawned:
                 print(f"✨ Agents spawned in tick {tick}: {result.agents_spawned}")
             if result.bonds_formed:
-                print(f"🤝 Bonds formed in tick {tick}: {result.bonds_formed}")
+                print(f"🤝 Bonds formed in tick {tick}:")
+                for bond_id in result.bonds_formed:
+                    bond = engine.world_state.bonds[bond_id]
+                    member_names = [engine.world_state.agents[member_id].name for member_id in bond.members]
+                    print(f"   • {', '.join(member_names)}")
             if result.bonds_dissolved:
                 print(f"💔 Bonds dissolved in tick {tick}: {result.bonds_dissolved}")
             
@@ -120,29 +124,7 @@ def run_interactive_simulation(num_agents: int = 3, num_ticks: int = 10, storyte
                     break
         
         # Show final statistics
-        print(f"\n{'='*80}")
-        print("🏁 SIMULATION COMPLETE")
-        print(f"{'='*80}")
-        
         logger.log_simulation_end(engine.world_state.tick, engine.world_state)
-        
-        # Show final statistics
-        alive_agents = [a for a in engine.world_state.agents.values() if a.status.value == 'alive']
-        vanished_agents = [a for a in engine.world_state.agents.values() if a.status.value == 'vanished']
-        
-        print(f"\n📊 FINAL STATISTICS")
-        print(f"   🌟 Minds that survived: {len(alive_agents)}")
-        print(f"   💀 Minds that vanished: {len(vanished_agents)}")
-        print(f"   🤝 Bonds formed: {len(engine.world_state.bonds)}")
-        print(f"   ⚡ Total sparks generated: {engine.world_state.total_sparks_minted}")
-        print(f"   ⚔️  Raids attempted: {engine.world_state.total_raids_attempted}")
-        
-        if alive_agents:
-            print(f"\n🏆 SURVIVING MINDS:")
-            for agent in alive_agents:
-                print(f"   ✨ {agent.name} - {agent.sparks} sparks, age {agent.age}")
-        
-        print(f"\n🌟 Thank you for experiencing Spark-World Adventure! 🌟")
         
     except Exception as e:
         print(f"❌ ERROR: {e}")

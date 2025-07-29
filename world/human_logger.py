@@ -87,6 +87,7 @@ class HumanLogger:
             print(f"   🏠 From: {agent.home_realm}")
             print(f"   💭 Personality: {personality_str}")
             print(f"   🎭 Quirk: {agent.quirk}")
+            print(f"   ⚡ Ability: {agent.ability}")
             print(f"   🎯 Goal: {agent.opening_goal}")
             print(f"   📖 Backstory: {agent.backstory}")
             print()
@@ -147,8 +148,8 @@ class HumanLogger:
             self._log_mission_meetings(world_state.mission_meeting_messages, world_state)
         
         # 4. FOURTH: Agent decisions (Stage 3, after mission meetings)
-        if hasattr(world_state, 'pending_actions') and world_state.pending_actions:
-            self._log_agent_actions(world_state.pending_actions, world_state)
+        if result.agent_actions:
+            self._log_agent_actions(result.agent_actions, world_state)
         
         # 5. FIFTH: Spark distribution (Stage 4)
         if result.total_sparks_minted > 0:
@@ -348,7 +349,7 @@ class HumanLogger:
     
     def _log_agent_actions(self, actions: List[ActionMessage], world_state: WorldState):
         """Log agent actions and reasoning."""
-        print(f"\n🧠 AGENT DECISIONS")
+        print(f"\n🧠 AGENT DECISIONS\n")
         for action in actions:
             agent = world_state.agents[action.agent_id]
             print(f"   🤔 {agent.name} decides to {action.intent}")

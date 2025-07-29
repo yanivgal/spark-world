@@ -54,6 +54,7 @@ class WorldNews:
     bonds_formed_this_tick: List[str]
     bonds_dissolved_this_tick: List[str]  # Bonds that dissolved due to member vanishing
     public_agent_info: Dict[str, Dict]  # name, species, realm for all agents
+    bob_sparks: int  # Bob's current spark count
 
 
 @dataclass

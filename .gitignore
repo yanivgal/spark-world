@@ -123,4 +123,9 @@ Thumbs.db
 # Project specific
 spark_world_cache/
 character_cache/
-*.cache 
+*.cache
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3 

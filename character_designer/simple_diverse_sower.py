@@ -27,6 +27,7 @@ class SimpleDiverseSignature(dspy.Signature):
     personality: List[str] = dspy.OutputField(desc="3-4 personality traits")
     goal: str = dspy.OutputField(desc="Character's main goal")
     quirk: str = dspy.OutputField(desc="One unique behavior")
+    ability: str = dspy.OutputField(desc="One special ability or power")
     backstory: str = dspy.OutputField(desc="Brief backstory (2 sentences)")
     realm: str = dspy.OutputField(desc="Home realm name")
 
@@ -96,17 +97,14 @@ class SimpleDiverseSower:
         self.used_personalities.add(personality_base)
         self.used_realms.add(result.realm)
         
-        # Generate ability based on the actual species (not constrained categories)
-        ability = self._generate_creative_ability(result.species, result.quirk)
-        
-        # Create agent
+        # Create agent using the LLM-generated ability
         agent = Agent(
             agent_id="",
             name=result.name,
             species=result.species,
             personality=result.personality,
             quirk=result.quirk,
-            ability=ability,
+            ability=result.ability,  # Use the LLM-generated ability
             age=0,
             sparks=5,
             status=AgentStatus.ALIVE,

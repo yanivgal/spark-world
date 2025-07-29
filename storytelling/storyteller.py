@@ -354,7 +354,9 @@ class Storyteller:
         for action in actions:
             summary = f"{action.agent_id}: {action.intent}"
             if action.target:
-                summary += f" targeting {action.target}"
+                # Clean target field to extract just the agent_id
+                clean_target = action.target.split('#')[0].split('because')[0].split(' - ')[0].split(' (')[0].strip()
+                summary += f" targeting {clean_target}"
             if action.content:
                 summary += f" - '{action.content[:50]}...'"
             if action.reasoning:

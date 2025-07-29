@@ -11,10 +11,14 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import dspy
+from dataclasses import dataclass
 from typing import List, Dict, Optional
-from world.state import WorldState, Agent, Bond, Mission
+
+from world.state import WorldState, AgentStatus, BondStatus
 from world.world_engine import TickResult
 from communication.messages.action_message import ActionMessage
+from communication.messages.mission_meeting_message import MissionMeetingMessage
+from storytelling.storyteller_structures import StorytellerOutput
 from character_designer.dspy_init import get_dspy
 
 class IntroductionSignature(dspy.Signature):
@@ -97,156 +101,116 @@ class HumanLogger:
 
     
     def log_tick_start(self, tick_number: int, world_state: WorldState):
-        """Log the start of a new tick with narrative context."""
-        self.tick_count = tick_number
-        
+        """Log the start of a new tick."""
         print(f"\n{'='*80}")
         print(f"⏰ TICK {tick_number}")
         print(f"{'='*80}")
         
-        # Show current world status in human terms
-        alive_agents = [a for a in world_state.agents.values() if a.status.value == "alive"]
-        bonded_agents = [a for a in alive_agents if a.bond_status.value == "bonded"]
+        # World status
+        living_agents = [agent for agent in world_state.agents.values() if agent.status == AgentStatus.ALIVE]
+        bonded_agents = [agent for agent in living_agents if agent.bond_status == BondStatus.BONDED]
         
         print(f"\n📊 WORLD STATUS")
-        print(f"   🌟 Living minds: {len(alive_agents)}")
+        print(f"   🌟 Living minds: {len(living_agents)}")
         print(f"   🤝 Bonded minds: {len(bonded_agents)}")
-        print(f"   🎁 Bob's sparks: {world_state.bob_sparks} (gains {world_state.bob_sparks_per_tick}/tick)")
+        print(f"   🎁 Bob's sparks: {world_state.bob_sparks} (gains 1/tick)")
         print(f"   🔗 Active bonds: {len(world_state.bonds)}")
         
-        # Show spark status for each agent
+        # Spark status (after upkeep costs)
         print(f"\n⚡ SPARK STATUS")
-        for agent in alive_agents:
-            if agent.sparks > 3:
-                status_emoji = "🟢"
-                status = "SAFE"
-            elif agent.sparks > 1:
-                status_emoji = "🟡"
-                status = "LOW"
+        for agent in living_agents:
+            if agent.sparks <= 1:
+                status = "[💀 CRITICAL]"
+            elif agent.sparks <= 2:
+                status = "[🟡 DANGER]"
             else:
-                status_emoji = "🔴"
-                status = "CRITICAL"
-            print(f"   {status_emoji} {agent.name}: {agent.sparks} sparks (age {agent.age}) - {status}")
-    
-    def log_tick_result(self, result: TickResult, world_state: WorldState):
-        """Log tick results in human-readable narrative format."""
+                status = "[🟢 SAFE]"
+            
+            bond_info = ""
+            if agent.bond_status == BondStatus.BONDED:
+                bond_info = " (bonded)"
+            
+            print(f"   {status} {agent.name}: {agent.sparks} sparks (age {agent.age}){bond_info}")
+        
         print(f"\n{'='*80}")
-        print(f"📖 TICK {result.tick} EVENTS")
+        print(f"📖 TICK {tick_number} EVENTS")
         print(f"{'='*80}")
         
-        # 1. FIRST: Spark minting from bonds (Stage 1)
-        if result.total_sparks_minted > 0:
-            self._log_spark_minting(result, world_state)
-        
-        # 2. SECOND: Bob's decisions from previous tick (Stage 2)
-        bob_donations = [e for e in result.events_logged if e['event_type'] == 'bob_donation']
-        if bob_donations:
-            self._log_bob_donations(bob_donations, world_state)
-        
-        # 3. THIRD: Mission meetings (happen first in Stage 3)
-        if hasattr(world_state, 'mission_meeting_messages') and world_state.mission_meeting_messages:
-            self._log_mission_meetings(world_state.mission_meeting_messages, world_state)
-        
-        # 4. FOURTH: Agent decisions (Stage 3, after mission meetings)
+    def log_tick_result(self, result: TickResult, world_state: WorldState):
+        """Log tick results in human-readable narrative format."""
+        # Log agent actions
         if result.agent_actions:
             self._log_agent_actions(result.agent_actions, world_state)
         
-        # 5. FIFTH: Spark distribution (Stage 4)
-        if result.total_sparks_minted > 0:
-            self._log_spark_distribution(result, world_state)
-        
-        # 6. SIXTH: Upkeep costs (Stage 5, first part)
-        if result.total_sparks_lost > 0:
-            self._log_upkeep_costs(result, world_state)
-        
-        # 7. SEVENTH: Action consequences (Stage 5, after upkeep)
+        # Log action consequences
         self._log_action_consequences(result, world_state)
         
-        # 8. EIGHTH: Storyteller narrative (Stage 6)
-        if hasattr(world_state, 'storyteller_output') and world_state.storyteller_output:
+        # Log mission meetings
+        if world_state.mission_meeting_messages:
+            self._log_mission_meetings(world_state.mission_meeting_messages, world_state)
+        
+        # Log storyteller narrative
+        if world_state.storyteller_output:
             self._log_storyteller_narrative(world_state.storyteller_output)
+        
+        # Log end of tick summary
+        print(f"\n{'='*80}")
+        print(f"📊 END OF TICK {result.tick}")
+        print(f"{'='*80}")
+        
+        living_agents = [agent for agent in world_state.agents.values() if agent.status == AgentStatus.ALIVE]
+        total_sparks = sum(agent.sparks for agent in living_agents)
+        
+        print(f"   🌟 Living minds: {len(living_agents)}")
+        print(f"   ⚡ Total sparks: {total_sparks}")
+        print(f"   🎁 Bob's sparks: {world_state.bob_sparks}")
+        print(f"   🔗 Active bonds: {len(world_state.bonds)}")
+        print(f"{'='*80}")
     
     def _log_action_consequences(self, result: TickResult, world_state: WorldState):
-        """Log the consequences of all actions that happen after upkeep."""
+        """Log the consequences of agent actions."""
         print(f"\n⚡ ACTION CONSEQUENCES")
-        print(f"{'─'*60}")
+        print(f"   ───────────────────────────────────────────────────────────")
         
-        # Bond formations (from pending bond requests)
+        # Log bond formations
         if result.bonds_formed:
-            print(f"\n🤝 BONDS FORMED")
+            print(f"   🤝 BONDS FORMED")
             for bond_id in result.bonds_formed:
                 bond = world_state.bonds[bond_id]
                 member_names = [world_state.agents[member_id].name for member_id in bond.members]
-                print(f"   {', '.join(member_names)} formed a bond!")
+                print(f"      {', '.join(member_names)} formed a bond!")
         
-        # Bond requests (pending for next tick)
-        bond_requests = [e for e in result.events_logged if e['event_type'] == 'bond_request']
-        if bond_requests:
-            print(f"\n💌 BOND REQUESTS")
-            for request in bond_requests:
-                requester_id = request['data']['requester_id']
-                target_id = request['data']['target_id']
-                content = request['data']['content']
-                
-                requester = world_state.agents[requester_id]
-                target = world_state.agents[target_id]
-                
-                print(f"   💌 {requester.name} → {target.name}")
-                print(f"      \"{content}\"")
-        
-        # Raids (processed after upkeep)
-        raids = [e for e in result.events_logged if e['event_type'] == 'raid']
-        if raids:
-            print(f"\n⚔️  RAIDS")
-            for raid in raids:
-                data = raid['data']
-                attacker_id = data['attacker_id']
-                defender_id = data['defender_id']
-                success = data['success']
-                sparks_transferred = data['sparks_transferred']
-                
-                attacker = world_state.agents[attacker_id]
-                defender = world_state.agents[defender_id]
-                
-                if success:
-                    print(f"   ⚔️  {attacker.name} successfully raids {defender.name}!")
-                    print(f"   💰 {sparks_transferred} sparks stolen")
-                else:
-                    print(f"   🛡️  {attacker.name} raids {defender.name} but fails!")
-                    print(f"   💪 {defender.name} gains 1 spark")
-        
-        # Failed raid attempts
-        failed_raids = [e for e in result.events_logged if e['event_type'] == 'raid_failed_no_sparks']
-        if failed_raids:
-            print(f"\n❌ FAILED RAID ATTEMPTS")
-            for raid in failed_raids:
-                data = raid['data']
-                attacker_id = data['attacker_id']
-                defender_id = data['defender_id']
-                
-                attacker = world_state.agents[attacker_id]
-                defender = world_state.agents[defender_id]
-                
-                print(f"   💀 {attacker.name} tries to raid {defender.name} but has no sparks to risk!")
-        
-        # Agent changes (after all processing)
-        if result.agents_vanished:
-            print(f"\n💀 MINDS FADE AWAY")
-            for agent_id in result.agents_vanished:
-                agent = world_state.agents[agent_id]
-                print(f"   💨 {agent.name} runs out of sparks and vanishes...")
-        
-        if result.agents_spawned:
-            print(f"\n✨ NEW MINDS EMERGE")
-            for agent_id in result.agents_spawned:
-                agent = world_state.agents[agent_id]
-                print(f"   🌟 {agent.name} is born with 5 sparks!")
-        
-        # Bond dissolutions
+        # Log bond dissolutions
         if result.bonds_dissolved:
-            print(f"\n💔 BONDS BREAK")
+            print(f"   💔 BONDS DISSOLVED")
             for bond_id in result.bonds_dissolved:
-                print(f"   💔 A bond dissolves...")
+                print(f"      Bond {bond_id} dissolved")
+        
+        # Log bond requests
+        if world_state.pending_bond_requests:
+            print(f"   💌 BOND REQUESTS")
+            for target_id, request in world_state.pending_bond_requests.items():
+                requester = world_state.agents[request.agent_id]
+                target = world_state.agents[target_id]
+                print(f"      💌 {requester.name} → {target.name}")
+                print(f"         \"{request.content}\"")
+        
+        # Log spark distribution
+        if result.total_sparks_minted > 0:
+            print(f"   ✨ SPARK DISTRIBUTION")
+            print(f"      Bonds generated {result.total_sparks_minted} new sparks")
+        
+        # Log raids
+        if result.total_raids_attempted > 0:
+            print(f"   ⚔️ RAID RESULTS")
+            print(f"      {result.total_raids_attempted} raids attempted")
+        
+        # Log Bob donations
+        if hasattr(world_state, 'bob_donations') and world_state.bob_donations:
+            print(f"   🎁 BOB'S DONATIONS")
+            for donation in world_state.bob_donations:
+                agent = world_state.agents[donation['agent_id']]
+                print(f"      {agent.name} received {donation['amount']} sparks from Bob")
     
     def _log_mission_meetings(self, meeting_messages: List, world_state: WorldState):
         """Log mission meetings with structured flow."""
@@ -276,34 +240,39 @@ class HumanLogger:
                 print(f"   📋 Goal: {mission.goal}")
                 print(f"   📊 Progress: {mission.current_progress}")
                 
-                # Show meeting flow
+                # Show meeting flow in a cleaner format
                 print(f"   💬 MEETING FLOW:")
                 
                 # Group by message type
-                leader_intro = [m for m in messages if hasattr(m, 'message_type') and m.message_type == 'LEADER_INTRODUCTION']
-                leader_opening = [m for m in messages if hasattr(m, 'message_type') and m.message_type == 'LEADER_OPENING']
-                agent_responses = [m for m in messages if hasattr(m, 'message_type') and m.message_type == 'AGENT_RESPONSE']
-                task_assignment = [m for m in messages if hasattr(m, 'message_type') and m.message_type == 'TASK_ASSIGNMENT']
+                leader_intro = [m for m in messages if hasattr(m, 'message_type') and m.message_type == 'leader_introduction']
+                leader_opening = [m for m in messages if hasattr(m, 'message_type') and m.message_type == 'leader_opening']
+                agent_responses = [m for m in messages if hasattr(m, 'message_type') and m.message_type == 'agent_response']
+                task_assignment = [m for m in messages if hasattr(m, 'message_type') and m.message_type == 'task_assignment']
                 
                 # Show leader introduction (first tick only)
                 if leader_intro:
                     leader = world_state.agents[leader_intro[0].sender_id]
-                    print(f"      👑 {leader.name} (Leader): \"{leader_intro[0].content}\"")
+                    print(f"      👑 {leader.name} (Leader Introduction):")
+                    print(f"         \"{leader_intro[0].content}\"")
                 
                 # Show leader opening
                 if leader_opening:
                     leader = world_state.agents[leader_opening[0].sender_id]
-                    print(f"      🎤 {leader.name} (Leader): \"{leader_opening[0].content}\"")
+                    print(f"      🎤 {leader.name} (Leader Opening):")
+                    print(f"         \"{leader_opening[0].content}\"")
                 
                 # Show agent responses
-                for response in agent_responses:
-                    agent = world_state.agents[response.sender_id]
-                    print(f"      💭 {agent.name}: \"{response.content}\"")
+                if agent_responses:
+                    print(f"      💭 Team Responses:")
+                    for response in agent_responses:
+                        agent = world_state.agents[response.sender_id]
+                        print(f"         • {agent.name}: \"{response.content}\"")
                 
                 # Show task assignment
                 if task_assignment:
                     leader = world_state.agents[task_assignment[0].sender_id]
-                    print(f"      📝 {leader.name} (Leader): \"{task_assignment[0].content}\"")
+                    print(f"      📝 {leader.name} (Task Assignment):")
+                    print(f"         \"{task_assignment[0].content}\"")
                 
                 # Show task assignments if available
                 if mission.assigned_tasks:
@@ -354,10 +323,23 @@ class HumanLogger:
             agent = world_state.agents[action.agent_id]
             print(f"   🤔 {agent.name} decides to {action.intent}")
             if action.target:
-                target = world_state.agents[action.target]
-                print(f"      🎯 Target: {target.name}")
+                # Clean target field - extract just the agent_id if it contains comments
+                clean_target = action.target.split('#')[0].split('because')[0].strip()
+                if clean_target in world_state.agents:
+                    target = world_state.agents[clean_target]
+                    print(f"      🎯 Target: {target.name}")
+                else:
+                    print(f"      🎯 Target: {action.target} (invalid agent_id)")
             if action.content:
-                print(f"      💬 Message: \"{action.content}\"")
+                if action.intent == "message" and action.target:
+                    clean_target = action.target.split('#')[0].split('because')[0].strip()
+                    if clean_target in world_state.agents:
+                        target = world_state.agents[clean_target]
+                        print(f"      💬 Message to {target.name}: \"{action.content}\"")
+                    else:
+                        print(f"      💬 Message: \"{action.content}\"")
+                else:
+                    print(f"      💬 Message: \"{action.content}\"")
             if action.reasoning:
                 print(f"      💭 Reasoning: {action.reasoning}")
             print()

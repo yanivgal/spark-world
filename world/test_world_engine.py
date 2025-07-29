@@ -175,15 +175,6 @@ def test_multiple_ticks(engine: WorldEngine, simulation_id: int, logger: HumanLo
         
         logger.log_tick_result(result, engine.world_state)
         
-        # Show tick summary
-        print(f"\n{'='*80}")
-        print(f"📊 END OF TICK {tick}")
-        print(f"{'='*80}")
-        print(f"   🌟 Living minds: {len([a for a in engine.world_state.agents.values() if a.status.value == 'alive'])}")
-        print(f"   ⚡ Total sparks: {sum(a.sparks for a in engine.world_state.agents.values() if a.status.value == 'alive')}")
-        print(f"   🎁 Bob's sparks: {engine.world_state.bob_sparks}")
-        print(f"   🔗 Active bonds: {len(engine.world_state.bonds)}")
-        
         # Check if any agents vanished
         if result.agents_vanished:
             print(f"⚠️  Agents vanished in tick {tick}: {result.agents_vanished}")

@@ -74,15 +74,6 @@ def run_interactive_simulation(num_agents: int = 3, num_ticks: int = 10, storyte
             # Log tick result
             logger.log_tick_result(result, engine.world_state)
             
-            # Show tick summary
-            print(f"\n{'='*80}")
-            print(f"📊 END OF TICK {tick}")
-            print(f"{'='*80}")
-            print(f"   🌟 Living minds: {len([a for a in engine.world_state.agents.values() if a.status.value == 'alive'])}")
-            print(f"   ⚡ Total sparks: {sum(a.sparks for a in engine.world_state.agents.values() if a.status.value == 'alive')}")
-            print(f"   🎁 Bob's sparks: {engine.world_state.bob_sparks}")
-            print(f"   🔗 Active bonds: {len(engine.world_state.bonds)}")
-            
             # Show special events
             if result.agents_vanished:
                 print(f"⚠️  Agents vanished in tick {tick}: {result.agents_vanished}")
@@ -204,8 +195,7 @@ def main():
     }
     
     for i, personality in enumerate(personalities, 1):
-        print(f"   {i}. {personality.upper()}")
-        print(f"{personality_descriptions[personality]}")
+        print(f"   {i}. {personality.upper()} - {personality_descriptions[personality]}")
         print()
     
     print(f"💭 Your storyteller will shape how you experience every moment...")

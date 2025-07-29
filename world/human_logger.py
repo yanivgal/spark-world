@@ -268,7 +268,6 @@ class HumanLogger:
         """Log the Storyteller's narrative."""
         print(f"\n📖 STORYTELLER'S TALE")
         print(f"   📚 Chapter: {storyteller_output.chapter_title}")
-        print(f"   🎭 Voice: {storyteller_output.storyteller_voice}")
         
         # Print the main narrative
         print(f"\n   {storyteller_output.narrative_text}")
@@ -430,17 +429,11 @@ class HumanLogger:
     
     def _log_final_status(self, result: TickResult, world_state: WorldState):
         """Log final status in human terms."""
-        print(f"\n{'='*80}")
-        print(f"📊 END OF TICK {result.tick}")
-        print(f"{'='*80}")
+        # Note: This method is kept for compatibility but the actual tick summary
+        # is handled by the interactive simulation to avoid duplication
         
         alive_agents = [a for a in world_state.agents.values() if a.status.value == "alive"]
         total_sparks = sum(agent.sparks for agent in alive_agents)
-        
-        print(f"   🌟 Living minds: {len(alive_agents)}")
-        print(f"   ⚡ Total sparks: {total_sparks}")
-        print(f"   🎁 Bob's sparks: {world_state.bob_sparks}")
-        print(f"   🔗 Active bonds: {len(world_state.bonds)}")
         
         # Show any urgent situations
         low_spark_agents = [a for a in alive_agents if a.sparks <= 2]

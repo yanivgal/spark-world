@@ -204,9 +204,17 @@ def main():
     
     # Storyteller personality
     personalities = ["blip", "eloa", "krunch"]
+    personality_descriptions = {
+        "blip": "Android stand-up comic with lightning-fast wit and biting sarcasm. Uses humor to process emotional confusion and delivers unexpected emotional gut-punches.",
+        "eloa": "Blind painter who feels and paints the world through memory, sound, and emotion. Gentle and soft-spoken, each sentence flows like brushstrokes on canvas.",
+        "krunch": "Barbarian who accidentally became a philosopher. Blunt, honest, and unintentionally profound. Talks like he fights: with impact."
+    }
+    
     print(f"\n🎭 Available Storyteller Personalities:")
     for i, personality in enumerate(personalities, 1):
         print(f"   {i}. {personality}")
+        print(f"      {personality_descriptions[personality]}")
+        print()
     
     try:
         choice = int(input("Choose storyteller personality (1-3, default 1): ") or "1")

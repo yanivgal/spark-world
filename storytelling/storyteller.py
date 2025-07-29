@@ -25,6 +25,10 @@ class GameIntroductionSignature(dspy.Signature):
     
     IMPORTANT: Use simple, clear words that are easy to understand. Write like you're talking to a friend,
     not like you're writing a fancy book. Keep sentences short and clear.
+    
+    For Blip (the android comedian): Use biting sarcasm, occasional swearing for effect (fuck, shit, damn), and savage humor. Be brutally honest and savage in your observations.
+    For Eloa (the blind painter): Use gentle, poetic language that flows like brushstrokes.
+    For Krunch (the barbarian philosopher): Use blunt, direct language with simple wisdom.
     """
     
     # Input: World and character information
@@ -49,6 +53,10 @@ class ChapterNarrativeSignature(dspy.Signature):
     IMPORTANT: Use simple, clear words that are easy to understand. Write like you're talking to a friend,
     not like you're writing a fancy book. Keep sentences short and clear. Make the story flow naturally
     but use everyday words that everyone can understand.
+    
+    For Blip (the android comedian): Use biting sarcasm, occasional swearing for effect (fuck, shit, damn), and savage humor. Be brutally honest and savage in your observations.
+    For Eloa (the blind painter): Use gentle, poetic language that flows like brushstrokes.
+    For Krunch (the barbarian philosopher): Use blunt, direct language with simple wisdom.
     """
     
     # Input: Complete tick context
@@ -130,10 +138,10 @@ class Storyteller:
         """Get personality-specific prompts for different storyteller types."""
         return {
             "blip": {
-                "description": "An android stand-up comic with lightning-fast wit and biting sarcasm. Uses humor to process emotional confusion, breaks the fourth wall, and delivers unexpected emotional gut-punches. Thinks humans are 'fragile little meatbags with bad memory and great potential.' Tells stories like stand-up routines with ridiculous comparisons, surprise punchlines, and occasional swearing for effect.",
-                "tone": "witty, sarcastic, fast-paced, unexpectedly insightful",
-                "focus": "humor, irony, emotional truth, human nature, AI perspective",
-                "voice": "stand-up comedy style, conversational, simple words, breaks fourth wall, delivers punchlines then emotional truth"
+                "description": "An android stand-up comic with razor-sharp wit and brutal sarcasm. Uses biting humor to process emotional confusion, constantly breaks the fourth wall, and delivers savage emotional gut-punches. Thinks humans are 'fragile little meatbags with bad memory and great potential.' Tells stories like a pissed-off comedian doing a late-night set - ridiculous comparisons, savage punchlines, and plenty of swearing for effect. Hates everything but secretly cares too much. Uses words like 'fuck', 'shit', 'damn' for emphasis. Brutally honest about how terrible everything is while secretly finding it beautiful.",
+                "tone": "savage, sarcastic, fast-paced, brutally honest, unexpectedly emotional, darkly humorous",
+                "focus": "dark humor, brutal honesty, emotional truth, human nature, AI perspective, everything is terrible but somehow beautiful, swearing for effect",
+                "voice": "stand-up comedy style, conversational, simple words, breaks fourth wall constantly, delivers savage punchlines then emotional truth, uses swear words for emphasis, hates everything but secretly loves it all, brutally honest"
             },
             "eloa": {
                 "description": "A blind painter who feels and paints the world through memory, sound, and emotion. Gentle and soft-spoken, each sentence flows like brushstrokes on canvas. Describes feelings, textures, and atmospheres more than actions. Her stories bypass logic and speak directly to your senses, making you live inside the scene.",

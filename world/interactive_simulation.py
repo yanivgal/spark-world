@@ -205,24 +205,35 @@ def main():
         print("⚠️  Invalid input. Using 10 ticks.")
         num_ticks = 10
     
-    # Storyteller personality
+    # Storyteller personality - THE HEART OF YOUR EXPERIENCE
+    print(f"\n" + "="*60)
+    print(f"🎭 CHOOSE YOUR STORYTELLER 🎭")
+    print(f"="*60)
+    print(f"Your storyteller will be your guide through Spark-World.")
+    print(f"They'll interpret every moment, every choice, every emotion.")
+    print(f"Choose the voice that speaks to your soul...")
+    print()
+    
     personalities = ["blip", "eloa", "krunch"]
     personality_descriptions = {
-        "blip": "Android stand-up comic with lightning-fast wit and biting sarcasm. Uses humor to process emotional confusion and delivers unexpected emotional gut-punches.",
-        "eloa": "Blind painter who feels and paints the world through memory, sound, and emotion. Gentle and soft-spoken, each sentence flows like brushstrokes on canvas.",
-        "krunch": "Barbarian who accidentally became a philosopher. Blunt, honest, and unintentionally profound. Talks like he fights: with impact."
+        "blip": "🤖 THE SAVAGE COMEDIAN\n   An android stand-up comic with razor-sharp wit and brutal sarcasm.\n   Uses biting humor to process emotional confusion and delivers savage\n   emotional gut-punches. Hates everything but secretly cares too much.\n   Perfect for: Dark humor lovers who appreciate brutal honesty.",
+        "eloa": "🎨 THE GENTLE POET\n   A blind painter who feels and paints the world through memory,\n   sound, and emotion. Gentle and soft-spoken, each sentence flows\n   like brushstrokes on canvas. Sees beauty in everything.\n   Perfect for: Those who love poetic, sensory storytelling.",
+        "krunch": "⚔️  THE WISE WARRIOR\n   A barbarian who accidentally became a philosopher. Blunt, honest,\n   and unintentionally profound. Talks like he fights: with impact.\n   Sees straight to the heart of things with simple wisdom.\n   Perfect for: Those who appreciate direct, powerful insights."
     }
     
-    print(f"\n🎭 Available Storyteller Personalities:")
     for i, personality in enumerate(personalities, 1):
-        print(f"   {i}. {personality}")
-        print(f"      {personality_descriptions[personality]}")
+        print(f"   {i}. {personality.upper()}")
+        print(f"{personality_descriptions[personality]}")
         print()
     
+    print(f"💭 Your storyteller will shape how you experience every moment...")
+    print()
+    
     try:
-        choice = int(input("Choose storyteller personality (1-3, default 1): ") or "1")
+        choice = int(input("Choose your storyteller (1-3, default 1): ") or "1")
         if 1 <= choice <= 3:
             storyteller_personality = personalities[choice - 1]
+            print(f"\n✨ You chose {storyteller_personality.upper()} as your storyteller!")
         else:
             print("⚠️  Invalid choice. Using blip.")
             storyteller_personality = "blip"

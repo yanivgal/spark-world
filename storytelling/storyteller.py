@@ -404,7 +404,7 @@ class Storyteller:
         
         summaries = []
         for response in responses:
-            summary = f"Bob granted {response.sparks_granted} sparks to {response.requester_id}: '{response.reasoning[:100]}...'"
+            summary = f"Bob granted {response.sparks_granted} sparks to {response.requesting_agent_id}: '{response.reasoning[:100]}...'"
             summaries.append(summary)
         
         return "; ".join(summaries)

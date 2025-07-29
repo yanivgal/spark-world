@@ -138,16 +138,16 @@ class HumanLogger:
         
     def log_tick_result(self, result: TickResult, world_state: WorldState):
         """Log tick results in human-readable narrative format."""
+        # Log mission meetings FIRST (they happen before agents act)
+        if world_state.mission_meeting_messages:
+            self._log_mission_meetings(world_state.mission_meeting_messages, world_state)
+        
         # Log agent actions
         if result.agent_actions:
             self._log_agent_actions(result.agent_actions, world_state)
         
         # Log action consequences
         self._log_action_consequences(result, world_state)
-        
-        # Log mission meetings
-        if world_state.mission_meeting_messages:
-            self._log_mission_meetings(world_state.mission_meeting_messages, world_state)
         
         # Log storyteller narrative
         if world_state.storyteller_output:
@@ -187,9 +187,9 @@ class HumanLogger:
                 print(f"      Bond {bond_id} dissolved")
         
         # Log bond requests
-        if world_state.pending_bond_requests:
+        if world_state.bond_requests_for_display:
             print(f"   💌 BOND REQUESTS")
-            for target_id, request in world_state.pending_bond_requests.items():
+            for target_id, request in world_state.bond_requests_for_display.items():
                 requester = world_state.agents[request.agent_id]
                 target = world_state.agents[target_id]
                 print(f"      💌 {requester.name} → {target.name}")
@@ -217,7 +217,8 @@ class HumanLogger:
         if not meeting_messages:
             return
             
-        print(f"\n🤝 MISSION MEETINGS")
+        print(f"\n🤝 MISSION MEETINGS (Pre-Action Coordination)")
+        print(f"   ───────────────────────────────────────────────────────────")
         
         # Group messages by mission
         missions = {}

@@ -61,11 +61,4 @@ python world/interactive_simulation.py
 * **[🚀 Vibe Coding Experience](VIBE_CODING_EXPERIENCE.md)** – How we built Spark-World using AI-assisted programming and what we learned
 * **[🎯 Elevator Pitch](ELEVATOR_PITCH.md)** – A compelling overview of Spark-World's vision and innovation
 
----
 
-**Implementation Note:** This is a conceptual design. The actual implementation will include:
-- Independent LLM agents with unique personalities
-- A World Engine to coordinate the 6-stage tick process
-- A Storyteller to convert events into narrative
-- Mission generation and management systems
-- Bob's renewable Spark economy

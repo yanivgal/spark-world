@@ -161,7 +161,7 @@ def create_game_setup():
                 ">
                     <h3 style="color: {storyteller['color']}; margin-bottom: 10px;">{storyteller['name']}</h3>
                     <p style="color: #333; font-size: 0.9rem; margin-bottom: 15px;">{storyteller['description']}</p>
-                    <p style="color: {storyteller['color']}; font-weight: bold; font-size: 0.8rem;">{storyteller['style']}</p>
+                    <p style="color: {storyteller['color']}; font-weight: bold; font-size: 1.0rem;">{storyteller['style']}</p>
                 </div>
                 """,
                 unsafe_allow_html=True
@@ -389,66 +389,209 @@ def display_story_page():
             """,
             unsafe_allow_html=True
         )
-        
-        # Display current storyteller narrative
-        # First check if we have storyteller output in world state
-        if hasattr(world_state, 'storyteller_output') and world_state.storyteller_output:
-            storyteller_output = world_state.storyteller_output
-            
-            # Display chapter title
-            if hasattr(storyteller_output, 'chapter_title'):
-                st.markdown(f"#### 📚 {storyteller_output.chapter_title}")
-            
-            # Display narrative text
-            if hasattr(storyteller_output, 'narrative_text'):
-                st.markdown("#### 🎭 Your Storyteller's Tale")
-                st.markdown(f"*{storyteller_output.narrative_text}*")
-            
-            # Display themes if available
-            if hasattr(storyteller_output, 'themes_explored') and storyteller_output.themes_explored:
-                st.markdown("#### 🎯 Themes Explored")
-                themes_text = " • ".join(storyteller_output.themes_explored)
-                st.markdown(f"*{themes_text}*")
-            
-            # Display character insights if available
-            if hasattr(storyteller_output, 'character_insights') and storyteller_output.character_insights:
-                st.markdown("#### 👥 Character Insights")
-                for insight in storyteller_output.character_insights:
-                    st.markdown(f"*{insight}*")
-            
-            # Display emotional arcs if available
-            if hasattr(storyteller_output, 'emotional_arcs') and storyteller_output.emotional_arcs:
-                st.markdown("#### 💫 Emotional Arcs")
-                for arc in storyteller_output.emotional_arcs:
-                    st.markdown(f"*{arc}*")
-        
 
-                
-        else:
-            st.markdown("#### 🎭 Awaiting the storyteller's words...")
-            st.markdown("*The storyteller is gathering their thoughts...*")
+        # World status in a more game-like format
+        st.markdown("### 🌟 World Status")
         
-        st.markdown("</div>", unsafe_allow_html=True)
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            living_agents = len([a for a in world_state.agents.values() if a.status.value == 'alive'])
+            st.metric("🌟 Living Minds", living_agents, delta=None)
+        
+        with col2:
+            total_sparks = sum(a.sparks for a in world_state.agents.values() if a.status.value == 'alive')
+            st.metric("⚡ Total Sparks", total_sparks, delta=None)
+        
+        with col3:
+            st.metric("🎁 Bob's Sparks", world_state.bob_sparks, delta=None)
+        
+        with col4:
+            st.metric("🔗 Active Bonds", len(world_state.bonds), delta=None)
+        
+  
+
+    st.markdown(
+            """
+            <div style="
+                background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+                padding: 25px;
+                border-radius: 15px;
+                margin-bottom: 20px;
+                color: white;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            ">
+            """,
+            unsafe_allow_html=True
+        )
     
-    # Display storyteller history
+    # Display the complete story flow with missions integrated
     if st.session_state.storyteller_history:
-        st.markdown("### 📚 Story History")
+        st.markdown("### 📚 The Complete Story")
         
-        # Create tabs for different views
-        tab1, tab2, tab3 = st.tabs(["📖 All Chapters", "🎯 Themes", "👥 Character Insights"])
+        # Add helpful descriptions
+        st.markdown("*Scroll through the chronological story of your Spark-World adventure*")
+
+        # Add progress indicators
+        st.progress(min(st.session_state.current_tick / st.session_state.num_ticks, 1.0))
+        st.caption(f"Progress: {st.session_state.current_tick} of {st.session_state.num_ticks} ticks")
+        
+        # Create a chronological story flow
+        all_events = []
+        
+        # Add storyteller entries
+        for story_entry in st.session_state.storyteller_history:
+            all_events.append({
+                'type': 'story',
+                'tick': story_entry['tick'],
+                'data': story_entry
+            })
+        
+        # Add mission events
+        if hasattr(world_state, 'missions') and world_state.missions:
+            for mission_id, mission in world_state.missions.items():
+                # Missions should appear in the flow based on when they were created
+                # If created_tick is 0, it means it was created in the current tick
+                mission_tick = mission.created_tick if mission.created_tick > 0 else st.session_state.current_tick
+                all_events.append({
+                    'type': 'mission',
+                    'tick': mission_tick,
+                    'data': mission
+                })
+        
+        # Add Bob's interactions from simulation data
+        for tick_data in st.session_state.simulation_data:
+            if 'bob_responses' in tick_data and tick_data['bob_responses']:
+                for bob_response in tick_data['bob_responses']:
+                    all_events.append({
+                        'type': 'bob',
+                        'tick': tick_data['tick'],
+                        'data': bob_response
+                    })
+        
+        # Sort all events by tick
+        all_events.sort(key=lambda x: x['tick'])
+        
+        # Display the complete story flow
+        for event in all_events:
+            if event['type'] == 'story':
+                story_entry = event['data']
+                
+                # Story chapter container
+                st.markdown(
+                    f"""
+                    <div style="
+                        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+                        padding: 20px;
+                        border-radius: 15px;
+                        margin-bottom: 20px;
+                        color: white;
+                        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+                    ">
+                        <h4 style="margin-bottom: 15px;">📚 Tick {story_entry['tick']}: {story_entry['chapter_title']}</h4>
+                        <p style="font-style: italic; margin-bottom: 10px;">{story_entry['narrative_text']}</p>
+                    """,
+                    unsafe_allow_html=True
+                )
+                
+                # Display themes if available
+                if story_entry['themes_explored']:
+                    themes_text = " • ".join(story_entry['themes_explored'])
+                    st.markdown(f"**🎯 Themes:** *{themes_text}*")
+                
+                # Display character insights if available
+                if story_entry['character_insights']:
+                    st.markdown("**👥 Character Insights:**")
+                    for insight in story_entry['character_insights']:
+                        st.markdown(f"*{insight}*")
+                
+                st.markdown("</div>", unsafe_allow_html=True)
+                 
+            elif event['type'] == 'bob':
+                bob_response = event['data']
+                
+                # Bob interaction container with golden theme
+                if bob_response.sparks_granted > 0:
+                    status_emoji = "🎁"
+                    status_text = "GRANTED"
+                    status_color = "#FFD700"  # Gold for granted
+                else:
+                    status_emoji = "🚫"
+                    status_text = "DENIED"
+                    status_color = "#FF6B6B"  # Red for denied
+                
+                st.markdown(
+                    f"""
+                    <div style="
+                        background: linear-gradient(135deg, #FFD700 0%, #FFA500 50%, #FF8C00 100%);
+                        padding: 15px;
+                        border-radius: 10px;
+                        margin-bottom: 15px;
+                        color: #2C1810;
+                        box-shadow: 0 2px 8px rgba(255, 215, 0, 0.3);
+                        border-left: 4px solid {status_color};
+                    ">
+                        <div style="display: flex; align-items: center; margin-bottom: 8px;">
+                            <span style="font-size: 1.2rem; margin-right: 8px;">{status_emoji}</span>
+                            <strong style="font-size: 1rem; color: #2C1810;">🎭 Bob's Decision</strong>
+                            <span style="margin-left: auto; font-size: 1.0rem; color: #2C1810;">Tick {event['tick']}</span>
+                        </div>
+                        <p style="font-style: italic; margin-bottom: 8px; font-size: 0.9rem; color: #2C1810;">{bob_response.request_content}</p>
+                        <div style="display: flex; justify-content: space-between; font-size: 1.0rem; color: #2C1810; font-weight: bold;">
+                            <span>👤 {bob_response.requesting_agent_id}</span>
+                            <span>⚡ {bob_response.sparks_granted} sparks</span>
+                            <span>{status_text}</span>
+                        </div>
+                        <p style="font-size: 1.0rem; margin-top: 8px; color: #2C1810; opacity: 0.9;">"{bob_response.reasoning}"</p>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+                 
+            elif event['type'] == 'mission':
+                mission = event['data']
+                
+                # Mission container with purple theme
+                status_emoji = "✅" if mission.is_complete else "🔄"
+                status_text = "COMPLETED" if mission.is_complete else "IN PROGRESS"
+                status_color = "#8B5CF6" if mission.is_complete else "#A855F7"
+                
+                # Get bond members from the associated bond
+                bond = world_state.bonds.get(mission.bond_id)
+                member_count = len(bond.members) if bond else 0
+                
+                st.markdown(
+                    f"""
+                    <div style="
+                        background: linear-gradient(135deg, #8B5CF6 0%, #A855F7 50%, #C084FC 100%);
+                        padding: 15px;
+                        border-radius: 10px;
+                        margin-bottom: 15px;
+                        color: white;
+                        box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3);
+                        border-left: 4px solid {status_color};
+                    ">
+                        <div style="display: flex; align-items: center; margin-bottom: 8px;">
+                            <span style="font-size: 1.2rem; margin-right: 8px;">{status_emoji}</span>
+                            <strong style="font-size: 1rem;">🎯 {mission.title}</strong>
+                            <span style="margin-left: auto; font-size: 1.0rem;">Tick {mission.created_tick}</span>
+                        </div>
+                        <p style="font-style: italic; margin-bottom: 8px; font-size: 0.9rem;">{mission.goal}</p>
+                        <div style="display: flex; justify-content: space-between; font-size: 1.0rem; opacity: 0.9;">
+                            <span>👑 {mission.leader_id}</span>
+                            <span>👥 {member_count} members</span>
+                            <span>{status_text}</span>
+                        </div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+        
+        # Add additional tabs for analysis
+        st.markdown("### 📊 Story Analysis")
+        tab1, tab2, tab3 = st.tabs(["🎯 Themes", "👥 Character Insights", "🎯 All Missions"])
         
         with tab1:
-            # Display all chapters
-            for i, story_entry in enumerate(reversed(st.session_state.storyteller_history)):
-                with st.expander(f"📚 Tick {story_entry['tick']}: {story_entry['chapter_title']}", expanded=(i==0)):
-                    st.markdown(f"**Chapter:** {story_entry['chapter_title']}")
-                    st.markdown(f"**Narrative:** {story_entry['narrative_text']}")
-                    if story_entry['themes_explored']:
-                        st.markdown(f"**Themes:** {', '.join(story_entry['themes_explored'])}")
-                    if story_entry['character_insights']:
-                        st.markdown(f"**Insights:** {', '.join(story_entry['character_insights'])}")
-        
-        with tab2:
             # Display themes across all ticks
             all_themes = []
             for entry in st.session_state.storyteller_history:
@@ -463,7 +606,7 @@ def display_story_page():
                 for theme, count in sorted(theme_counts.items(), key=lambda x: x[1], reverse=True):
                     st.markdown(f"**{theme}** (appeared {count} times)")
         
-        with tab3:
+        with tab2:
             # Display character insights
             all_insights = []
             for entry in st.session_state.storyteller_history:
@@ -473,25 +616,42 @@ def display_story_page():
                 st.markdown("#### 👥 Character Development")
                 for insight in all_insights:
                     st.markdown(f"*{insight}*")
-    
-    # World status in a more game-like format
-    st.markdown("### 🌟 World Status")
-    
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        living_agents = len([a for a in world_state.agents.values() if a.status.value == 'alive'])
-        st.metric("🌟 Living Minds", living_agents, delta=None)
-    
-    with col2:
-        total_sparks = sum(a.sparks for a in world_state.agents.values() if a.status.value == 'alive')
-        st.metric("⚡ Total Sparks", total_sparks, delta=None)
-    
-    with col3:
-        st.metric("🎁 Bob's Sparks", world_state.bob_sparks, delta=None)
-    
-    with col4:
-        st.metric("🔗 Active Bonds", len(world_state.bonds), delta=None)
+        
+        with tab3:
+            # Display all missions
+            if hasattr(world_state, 'missions') and world_state.missions:
+                st.markdown("#### 🎯 All Missions")
+                for mission_id, mission in world_state.missions.items():
+                    status_emoji = "✅" if mission.is_complete else "🔄"
+                    status_text = "COMPLETED" if mission.is_complete else "IN PROGRESS"
+                    
+                    st.markdown(
+                        f"""
+                        <div style="
+                            background: linear-gradient(135deg, #8B5CF6 0%, #A855F7 50%, #C084FC 100%);
+                            padding: 15px;
+                            border-radius: 10px;
+                            margin-bottom: 10px;
+                            color: white;
+                            box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3);
+                        ">
+                            <div style="display: flex; align-items: center; margin-bottom: 8px;">
+                                <span style="font-size: 1.2rem; margin-right: 8px;">{status_emoji}</span>
+                                <strong style="font-size: 1rem;">{mission.title}</strong>
+                                <span style="margin-left: auto; font-size: 1.0rem;">Tick {mission.created_tick}</span>
+                            </div>
+                            <p style="font-style: italic; margin-bottom: 8px; font-size: 0.9rem;">{mission.goal}</p>
+                            <div style="display: flex; justify-content: space-between; font-size: 1.0rem; opacity: 0.9;">
+                                <span>👑 {mission.leader_id}</span>
+                                <span>👥 {len(world_state.bonds.get(mission.bond_id, {}).members) if world_state.bonds.get(mission.bond_id) else 0} members</span>
+                                <span>{status_text}</span>
+                            </div>
+                        </div>
+                        """,
+                        unsafe_allow_html=True
+                    )
+            else:
+                st.info("No missions yet. Missions are created when agents form bonds.")
 
 
 def display_agents_page():
@@ -634,7 +794,8 @@ def run_single_tick():
             'agents_spawned': len(result.agents_spawned) if result.agents_spawned else 0,
             'bonds_formed': len(result.bonds_formed) if result.bonds_formed else 0,
             'bonds_dissolved': len(result.bonds_dissolved) if result.bonds_dissolved else 0,
-            'storyteller_output': storyteller_output
+            'storyteller_output': storyteller_output,
+            'bob_responses': world_state.bob_responses_this_tick.copy() if hasattr(world_state, 'bob_responses_this_tick') else []
         }
         
         st.session_state.simulation_data.append(tick_data)

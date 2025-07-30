@@ -864,6 +864,9 @@ class WorldEngine:
         # Create mission using Mission System
         mission = self.mission_system.generate_mission_for_bond(bond, self.world_state.agents, world_context)
         
+        # Set the created tick to the current tick
+        mission.created_tick = self.world_state.tick
+        
         # Add mission to world
         self.world_state.missions[mission.mission_id] = mission
         bond.mission_id = mission.mission_id

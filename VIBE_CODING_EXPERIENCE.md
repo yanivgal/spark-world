@@ -263,4 +263,16 @@ This is just the beginning. The tools will get better, the workflows will become
 
 ---
 
+## Explore Further
+
+* **[🌌 The Complete Guide](sparkworld.md)** – Everything about how Spark‑World works, from the 6-stage tick system to advanced strategies
+* **[🤖 How Agents Think](sparkworld_how_the_pieces_talk.md)** – The technical details of how agents communicate and make decisions
+* **[📖 The Storyteller](storyteller.md)** – How the narrative emerges from raw events
+* **[🧩 Mission Meetings](mission_meeting.md)** – How bonded agents collaborate on shared goals
+* **[👤 Bob's Story](bob.md)** – The mysterious wanderer who holds the power to give life
+* **[🌱 Shard‑Sower](shard_sower.md)** – The extradimensional artisan who forges new minds
+* **[← Back to Overview](README.md)** – Return to the main project page
+
+---
+
 *This document reflects our personal experience and insights. Your mileage may vary, but we hope these lessons help you on your own vibe coding journey.* 

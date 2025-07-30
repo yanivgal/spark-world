@@ -59,6 +59,7 @@ python world/interactive_simulation.py
 * **[👤 Bob's Story](bob.md)** – The mysterious wanderer who holds the power to give life
 * **[🌱 Shard‑Sower](shard_sower.md)** – The extradimensional artisan who forges new minds
 * **[🚀 Vibe Coding Experience](VIBE_CODING_EXPERIENCE.md)** – How we built Spark-World using AI-assisted programming and what we learned
+* **[🎯 Elevator Pitch](ELEVATOR_PITCH.md)** – A compelling overview of Spark-World's vision and innovation
 
 ---
 

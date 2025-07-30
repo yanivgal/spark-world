@@ -38,9 +38,14 @@ No graphics, just pure text… yet alliances form, betrayals sting, and micro‑
 ```bash
 git clone https://github.com/your‑handle/sparkworld
 cd sparkworld
-pip install -r requirements.txt   # langgraph, dspy, sqlmodel, streamlit…
-python main.py                    # launches WorldEngine
-streamlit run app.py              # (optional UI)
+pip install -r requirements.txt   # dspy-ai, openai, dataclasses-json, typing-extensions
+
+# Set up your OpenAI API key
+cp template.env .env
+# Edit .env and add your OpenAI API key: OPENAI_API_KEY=your_key_here
+
+# Run the interactive simulation
+python world/interactive_simulation.py
 ```
 
 ---
@@ -53,6 +58,7 @@ streamlit run app.py              # (optional UI)
 * **[🧩 Mission Meetings](mission_meeting.md)** – How bonded agents collaborate on shared goals
 * **[👤 Bob's Story](bob.md)** – The mysterious wanderer who holds the power to give life
 * **[🌱 Shard‑Sower](shard_sower.md)** – The extradimensional artisan who forges new minds
+* **[🚀 Vibe Coding Experience](VIBE_CODING_EXPERIENCE.md)** – How we built Spark-World using AI-assisted programming and what we learned
 
 ---
 

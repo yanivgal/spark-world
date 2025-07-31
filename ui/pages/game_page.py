@@ -6,7 +6,8 @@ Page logic for the main game interface and page routing.
 
 import streamlit as st
 from ui.components.navigation import create_navigation
-from ui.components.story import display_story_page, display_storyteller_only_page
+from ui.components.story import display_story_page
+from ui.components.home import display_home_page
 from ui.components.agents import display_agents_page
 from ui.components.analytics import display_analytics_page
 from ui.components.controls import create_game_controls
@@ -19,10 +20,10 @@ def render_game_page():
     create_navigation()
     
     # Display current page
-    if st.session_state.current_page == "overview":
-        display_story_page()
+    if st.session_state.current_page == "home":
+        display_home_page()
     elif st.session_state.current_page == "story":
-        display_storyteller_only_page()
+        display_story_page()
     elif st.session_state.current_page == "agents":
         display_agents_page()
     elif st.session_state.current_page == "analytics":

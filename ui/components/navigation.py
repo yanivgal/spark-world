@@ -12,8 +12,8 @@ def create_navigation():
     col1, col2, col3, col4, col5 = st.columns(5)
     
     with col1:
-        if st.button("📖 Overview", use_container_width=True):
-            st.session_state.current_page = "overview"
+        if st.button("🏠 Home", use_container_width=True):
+            st.session_state.current_page = "home"
             st.rerun()
     
     with col2:

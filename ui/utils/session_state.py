@@ -27,7 +27,7 @@ def initialize_session_state():
     if 'storyteller_history' not in st.session_state:
         st.session_state.storyteller_history = []
     if 'current_page' not in st.session_state:
-        st.session_state.current_page = "overview"
+        st.session_state.current_page = "home"
     if 'is_processing' not in st.session_state:
         st.session_state.is_processing = False
 
@@ -54,7 +54,7 @@ def set_current_tick(tick: int):
 
 def get_current_page() -> str:
     """Get current page."""
-    return st.session_state.get('current_page', 'overview')
+    return st.session_state.get('current_page', 'home')
 
 
 def set_current_page(page: str):

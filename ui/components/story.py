@@ -600,3 +600,182 @@ def display_story_page():
         
         # Create story analysis tabs
         create_story_analysis_tabs(world_state) 
+
+
+def display_storyteller_only_page():
+    """Display a dedicated page showing only storyteller iterations."""
+    # Add custom CSS for better text styling
+    st.markdown("""
+        <style>
+        .story-text {
+            font-style: italic !important;
+            font-size: 1.1rem !important;
+            line-height: 1.6 !important;
+            color: #f8f9fa !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("## 📖 Once Upon a Spark-World...")
+    st.markdown("*Where every moment becomes a story, and every choice writes a new chapter*")
+    
+    if not st.session_state.engine:
+        st.info("Please initialize the simulation first.")
+        return
+    
+    # Display current tick and controls
+    col1, col2 = st.columns([2, 1])
+    with col1:
+        st.markdown(f"### ⏰ Tick {st.session_state.current_tick}")
+    with col2:
+        if st.button("⏭️ Next Tick", type="primary", use_container_width=True):
+            if st.session_state.current_tick < st.session_state.num_ticks:
+                with st.spinner("🔄 The storyteller is weaving your tale..."):
+                    result = run_single_tick()
+                    if result:
+                        st.success(f"✅ Tick {st.session_state.current_tick} completed!")
+                        st.rerun()
+                    else:
+                        st.error("❌ Error during tick")
+            else:
+                st.warning("🏁 Simulation completed!")
+    
+    # Display progress
+    st.progress(min(st.session_state.current_tick / st.session_state.num_ticks, 1.0))
+    st.caption(f"Progress: {st.session_state.current_tick} of {st.session_state.num_ticks} ticks")
+    
+    # Display all storyteller iterations as cards
+    if st.session_state.storyteller_history:
+        # Separate introduction (tick 0) from regular story iterations
+        introduction_entry = None
+        story_iterations = []
+        
+        for story_entry in st.session_state.storyteller_history:
+            if story_entry['tick'] == 0:
+                introduction_entry = story_entry
+            else:
+                story_iterations.append(story_entry)
+        
+        # Display the introduction as a special prologue
+        if introduction_entry:
+            st.markdown("### 📚 Prologue")
+            st.markdown("*The storyteller sets the stage for our adventure...*")
+            
+            # Get storyteller info for styling
+            storyteller_color = "#f093fb"  # Default color
+            if hasattr(st.session_state, 'selected_storyteller') and st.session_state.selected_storyteller:
+                storytellers = {
+                    "blip": {"color": "#FF6B6B"},
+                    "eloa": {"color": "#4ECDC4"},
+                    "krunch": {"color": "#45B7D1"}
+                }
+                storyteller_color = storytellers[st.session_state.selected_storyteller]["color"]
+            
+            # Special prologue card with different styling
+            st.markdown(
+                f"""
+                <div style="
+                    background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+                    padding: 30px;
+                    border-radius: 15px;
+                    margin-bottom: 30px;
+                    color: white;
+                    box-shadow: 0 10px 30px rgba(44, 62, 80, 0.4);
+                    border-left: 5px solid {storyteller_color};
+                ">
+                    <div style="display: flex; align-items: center; margin-bottom: 20px;">
+                        <span style="font-size: 2rem; margin-right: 15px;">📖</span>
+                        <h2 style="margin: 0; color: white; font-size: 1.5rem;">{introduction_entry['chapter_title']}</h2>
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+            
+            # Display the narrative text separately using st.write to avoid HTML rendering issues
+            st.markdown(
+                f"""
+                <div style="
+                    background: rgba(255, 255, 255, 0.1);
+                    padding: 20px;
+                    border-radius: 12px;
+                    margin-bottom: 20px;
+                    border-left: 4px solid {storyteller_color};
+                ">
+                """,
+                unsafe_allow_html=True
+            )
+            
+            # Use st.write for the narrative text to avoid HTML rendering issues
+            st.markdown(f'<div class="story-text">{introduction_entry["narrative_text"]}</div>', unsafe_allow_html=True)
+            
+            st.markdown("</div>", unsafe_allow_html=True)
+            
+            st.markdown("---")
+        
+        # Display regular story iterations
+        if story_iterations:
+            st.markdown("### 📖 The Tale Unfolds")
+            st.markdown("*Chapter by chapter, the story continues...*")
+            
+            for i, story_entry in enumerate(story_iterations):
+                # Create a beautiful card for each storyteller iteration
+                st.markdown(
+                    f"""
+                    <div style="
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        padding: 25px;
+                        border-radius: 15px;
+                        margin-bottom: 25px;
+                        color: white;
+                        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+                        border-left: 5px solid #f093fb;
+                    ">
+                        <div style="display: flex; align-items: center; margin-bottom: 15px;">
+                            <span style="font-size: 1.5rem; margin-right: 10px;">📚</span>
+                            <h3 style="margin: 0; color: white;">Tick {story_entry['tick']}: {story_entry['chapter_title']}</h3>
+                        </div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+                
+                # Display the narrative text separately using st.write to avoid HTML rendering issues
+                st.markdown(
+                    f"""
+                    <div style="
+                        background: rgba(255, 255, 255, 0.1);
+                        padding: 15px;
+                        border-radius: 10px;
+                        margin-bottom: 15px;
+                        border-left: 3px solid #f093fb;
+                    ">
+                    """,
+                    unsafe_allow_html=True
+                )
+                
+                # Use st.markdown for the narrative text to avoid HTML rendering issues
+                st.markdown(f'<div class="story-text">{story_entry["narrative_text"]}</div>', unsafe_allow_html=True)
+                
+                st.markdown("</div>", unsafe_allow_html=True)
+                
+                # Close the main card
+                st.markdown("</div>", unsafe_allow_html=True)
+                
+                # Add a subtle separator between iterations
+                if i < len(story_iterations) - 1:
+                    st.markdown(
+                        """
+                        <div style="
+                            height: 2px;
+                            background: linear-gradient(90deg, transparent, #667eea, transparent);
+                            margin: 20px 0;
+                            border-radius: 1px;
+                        "></div>
+                        """,
+                        unsafe_allow_html=True
+                    )
+    else:
+        st.info("📚 No storyteller iterations yet. Run some ticks to see the story unfold!") 

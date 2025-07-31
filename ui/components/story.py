@@ -292,24 +292,40 @@ def display_story_entry(story_entry, world_state):
     st.markdown(
         f"""
         <div style="
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 25px;
             border-radius: 15px;
-            margin-bottom: 20px;
+            margin-bottom: 25px;
             color: white;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+            border-left: 5px solid #f093fb;
         ">
-            <h4 style="margin-bottom: 15px;">📚 Tick {story_entry['tick']}: {story_entry['chapter_title']}</h4>
-            <p style="font-style: italic; margin-bottom: 10px;">{story_entry['narrative_text']}</p>
+            <div style="display: flex; align-items: center; margin-bottom: 15px;">
+                <span style="font-size: 1.5rem; margin-right: 10px;">📚</span>
+                <h3 style="margin: 0; color: white;">Tick {story_entry['tick']}: {story_entry['chapter_title']}</h3>
+            </div>
         """,
         unsafe_allow_html=True
     )
     
-    # Display world status for this tick
-    if tick_data:
-        display_agent_decisions(tick_data)
-        display_action_consequences(tick_data)
-        display_end_of_tick_summary(tick_data)
+    # Display the narrative text with the same styling as Story tab
+    st.markdown(
+        f"""
+        <div style="
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            border-left: 3px solid #f093fb;
+        ">
+        """,
+        unsafe_allow_html=True
+    )
+    
+    # Use the same story-text CSS class for consistent styling
+    st.markdown(f'<div class="story-text">{story_entry["narrative_text"]}</div>', unsafe_allow_html=True)
+    
+    st.markdown("</div>", unsafe_allow_html=True)
     
     # Display themes if available
     if story_entry['themes_explored']:
@@ -322,6 +338,13 @@ def display_story_entry(story_entry, world_state):
         for insight in story_entry['character_insights']:
             st.markdown(f"*{insight}*")
     
+    # Display world status for this tick
+    if tick_data:
+        display_agent_decisions(tick_data)
+        display_action_consequences(tick_data)
+        display_end_of_tick_summary(tick_data)
+    
+    # Close the main card
     st.markdown("</div>", unsafe_allow_html=True)
 
 
@@ -705,6 +728,20 @@ def create_story_analysis_tabs(world_state):
 
 def display_story_page():
     """Display the main overview page with storyteller narrative."""
+    # Add custom CSS for better text styling (same as Story tab)
+    st.markdown("""
+        <style>
+        .story-text {
+            font-style: italic !important;
+            font-size: 1.1rem !important;
+            line-height: 1.6 !important;
+            color: #f8f9fa !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+    
     # Create story header
     if not create_story_header():
         return

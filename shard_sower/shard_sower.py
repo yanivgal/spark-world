@@ -27,6 +27,21 @@ class ShardSowerSignature(dspy.Signature):
     
     Use a different cultural origin each time: nordic, celtic, japanese, arabic, 
     slavic, greek, hebrew, etc. Vary personality: mix positive and negative traits.
+    
+    🗣️ SPEECH STYLE DIVERSITY (CRITICAL):
+    Each character must have a unique way of speaking. Create speech styles that are:
+    - SPECIFIC to the character's personality, species, and quirk
+    - DIVERSE across different characters (no generic styles)
+    - DETAILED about tone, vocabulary, sentence structure, and communication patterns
+    
+    Speech style examples:
+    - Aggressive dragon: "Speaks with anger and threats. Uses short, sharp words like 'fight', 'destroy', 'weak'. Often challenges others with demands. Confrontational tone with lots of exclamation marks."
+    - Shy mouse: "Speaks quietly and hesitantly. Uses soft words like 'maybe', 'I think', 'if that's okay'. Often asks permission and uses ellipses. Nervous, apologetic tone."
+    - Wise owl: "Speaks thoughtfully with long, measured sentences. Uses words like 'consider', 'perhaps', 'indeed'. Often asks rhetorical questions. Calm, philosophical tone."
+    - Playful sprite: "Speaks with excitement and energy. Uses bubbly words like 'fun', 'amazing', 'wow'. Short, enthusiastic sentences with lots of exclamation marks. Cheerful, optimistic tone."
+    - Mysterious raven: "Speaks in riddles and metaphors. Uses mysterious words like 'shadows', 'secrets', 'whispers'. Often speaks cryptically and asks questions. Dark, enigmatic tone."
+    
+    Make each speech style unique and fitting to the character's nature!
     """
     
     seed: int = dspy.InputField(desc="Random seed to ensure unique outputs")
@@ -41,6 +56,7 @@ class ShardSowerSignature(dspy.Signature):
     ability: str = dspy.OutputField(desc="One special ability or power")
     backstory: str = dspy.OutputField(desc="Brief backstory (1 paragraph)")
     realm: str = dspy.OutputField(desc="Home realm name")
+    speech_style: str = dspy.OutputField(desc="How this character speaks - their tone, vocabulary, sentence structure, and communication style. Be specific about how they express themselves.")
 
 class ShardSower:
     """
@@ -116,7 +132,8 @@ class ShardSower:
             quirk=result.quirk,
             ability=result.ability,
             backstory=result.backstory,
-            opening_goal=result.goal
+            opening_goal=result.goal,
+            speech_style=result.speech_style
         )
         
         return character_blueprint
@@ -140,7 +157,8 @@ class ShardSower:
             bond_members=[],
             home_realm=character_blueprint.home_realm,
             backstory=character_blueprint.backstory,
-            opening_goal=character_blueprint.opening_goal
+            opening_goal=character_blueprint.opening_goal,
+            speech_style=character_blueprint.speech_style
         )
         
         return agent

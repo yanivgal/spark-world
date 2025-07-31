@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from typing import List, Dict, Optional
 import json
 
-from storytelling.storyteller_structures import StorytellerInput, StorytellerOutput
+from storytelling.storyteller_structures import StorytellerInput, StorytellerOutput, ActionProcessingResult
 from communication.messages.action_message import ActionMessage
 from communication.messages.mission_meeting_message import MissionMeetingMessage
 from world.simulation_mechanics import RaidResult, SparkTransaction, BobResponse
@@ -64,11 +64,18 @@ class ChapterNarrativeSignature(dspy.Signature):
     tick_number: str = dspy.InputField(desc="Current tick number")
     previous_chapter_summary: str = dspy.InputField(desc="Brief summary of the previous chapter for continuity")
     world_state_summary: str = dspy.InputField(desc="Current state of the world and agents")
-    events_this_tick: str = dspy.InputField(desc="All events that occurred this tick")
-    agent_actions: str = dspy.InputField(desc="All agent actions with their reasoning")
-    mission_meetings: str = dspy.InputField(desc="Mission meeting exchanges and outcomes")
-    spark_changes: str = dspy.InputField(desc="Spark transactions and changes")
-    bob_interactions: str = dspy.InputField(desc="Bob's decisions and interactions")
+    
+    # Enhanced data for rich storytelling (replaces old basic summaries)
+    agent_changes: str = dspy.InputField(desc="Detailed changes to agents this tick (sparks, age, status, bonds)")
+    bond_formations: str = dspy.InputField(desc="Detailed bond formation information with member names and missions")
+    bond_dissolutions: str = dspy.InputField(desc="Detailed bond dissolution information with reasons")
+    mission_details: str = dspy.InputField(desc="Active missions and their progress updates")
+    mission_meeting_summaries: str = dspy.InputField(desc="Detailed mission meeting summaries with agent responses and task assignments")
+    action_results: str = dspy.InputField(desc="Results of processing agent actions (success/failure, spark impact)")
+    spark_distribution: str = dspy.InputField(desc="Detailed spark distribution within bonds")
+    vanished_agents: str = dspy.InputField(desc="Context for agents that vanished (final state, bond members, missions)")
+    bob_context: str = dspy.InputField(desc="Complete context for Bob's decisions (requests, reasoning patterns)")
+    tick_statistics: str = dspy.InputField(desc="Summary statistics for this tick")
     
     # Output: Chapter narrative
     chapter_title: str = dspy.OutputField(desc="Simple, engaging title for this chapter")
@@ -245,20 +252,17 @@ class Storyteller:
         # Prepare world state summary
         world_summary = self._create_world_state_summary(input_data.world_state)
         
-        # Prepare events summary
-        events_summary = self._create_events_summary(input_data)
-        
-        # Prepare agent actions summary
-        actions_summary = self._create_actions_summary(input_data.agent_actions)
-        
-        # Prepare mission meetings summary
-        meetings_summary = self._create_meetings_summary(input_data.mission_meeting_messages)
-        
-        # Prepare spark changes summary
-        spark_summary = self._create_spark_summary(input_data.spark_transactions)
-        
-        # Prepare Bob interactions summary
-        bob_summary = self._create_bob_summary(input_data.bob_responses)
+        # Prepare enhanced data summaries (replaces old basic summaries)
+        agent_changes_summary = self._create_agent_changes_summary(input_data.agent_changes)
+        bond_formations_summary = self._create_bond_formations_summary(input_data.bonds_formed_details)
+        bond_dissolutions_summary = self._create_bond_dissolutions_summary(input_data.bonds_dissolved_details)
+        mission_details_summary = self._create_mission_details_summary(input_data.active_missions)
+        mission_meeting_summaries = self._create_mission_meeting_summaries(input_data.mission_meeting_summaries)
+        action_results_summary = self._create_action_results_summary(input_data.action_processing_results)
+        spark_distribution_summary = self._create_spark_distribution_summary(input_data.spark_distribution_details)
+        vanished_agents_summary = self._create_vanished_agents_summary(input_data.vanished_agents_context)
+        bob_context_summary = self._create_bob_context_summary(input_data.bob_context)
+        tick_statistics_summary = self._create_tick_statistics_summary(input_data.tick_statistics)
         
         # Generate chapter using DSPy
         chapter_output = self.chapter_generator(
@@ -266,11 +270,16 @@ class Storyteller:
             tick_number=str(input_data.tick),
             previous_chapter_summary=previous_summary,
             world_state_summary=world_summary,
-            events_this_tick=events_summary,
-            agent_actions=actions_summary,
-            mission_meetings=meetings_summary,
-            spark_changes=spark_summary,
-            bob_interactions=bob_summary
+            agent_changes=agent_changes_summary,
+            bond_formations=bond_formations_summary,
+            bond_dissolutions=bond_dissolutions_summary,
+            mission_details=mission_details_summary,
+            mission_meeting_summaries=mission_meeting_summaries,
+            action_results=action_results_summary,
+            spark_distribution=spark_distribution_summary,
+            vanished_agents=vanished_agents_summary,
+            bob_context=bob_context_summary,
+            tick_statistics=tick_statistics_summary
         )
         
         # Generate character insights
@@ -322,93 +331,174 @@ class Storyteller:
         
         return summary
     
-    def _create_events_summary(self, input_data: StorytellerInput) -> str:
-        """Create a summary of events this tick."""
-        events = []
+    def _create_agent_changes_summary(self, agent_changes) -> str:
+        """Create a summary of agent changes this tick."""
+        if not agent_changes:
+            return "No agent changes this tick"
         
-        # Add vanished agents
-        vanished = [a for a in input_data.world_state.agents.values() if a.status.value == "vanished"]
-        if vanished:
-            events.append(f"Agents vanished: {[a.name for a in vanished]}")
+        summaries = []
+        for change in agent_changes:
+            summary = f"{change.agent_name}: "
+            changes = []
+            
+            if change.spark_change != 0:
+                changes.append(f"sparks {change.spark_change:+d}")
+            if change.age_change != 0:
+                changes.append(f"age +{change.age_change}")
+            if change.status_change:
+                changes.append(f"status {change.status_change}")
+            if change.bond_status_change:
+                changes.append(f"bond {change.bond_status_change}")
+            
+            summary += ", ".join(changes)
+            summaries.append(summary)
         
-        # Add spawned agents
-        if input_data.world_state.agents_spawned_this_tick:
-            events.append(f"New agents spawned: {input_data.world_state.agents_spawned_this_tick}")
-        
-        # Add bond formations
-        if input_data.world_state.bonds_formed_this_tick:
-            events.append(f"Bonds formed: {input_data.world_state.bonds_formed_this_tick}")
-        
-        # Add bond dissolutions
-        if input_data.world_state.bonds_dissolved_this_tick:
-            events.append(f"Bonds dissolved: {input_data.world_state.bonds_dissolved_this_tick}")
-        
-        return "; ".join(events) if events else "No major world events"
+        return "; ".join(summaries)
     
-    def _create_actions_summary(self, actions: List[ActionMessage]) -> str:
-        """Create a summary of agent actions."""
-        if not actions:
-            return "No agent actions this tick"
+    def _create_bond_formations_summary(self, bonds_formed_details) -> str:
+        """Create a summary of bond formations this tick."""
+        if not bonds_formed_details:
+            return "No bonds formed this tick"
         
-        action_summaries = []
-        for action in actions:
-            summary = f"{action.agent_id}: {action.intent}"
-            if action.target:
-                # Clean target field to extract just the agent_id
-                clean_target = action.target.split('#')[0].split('because')[0].split(' - ')[0].split(' (')[0].strip()
-                summary += f" targeting {clean_target}"
-            if action.content:
-                summary += f" - '{action.content[:50]}...'"
-            if action.reasoning:
-                summary += f" (Reasoning: {action.reasoning[:100]}...)"
-            action_summaries.append(summary)
+        summaries = []
+        for bond in bonds_formed_details:
+            member_names = ", ".join(bond.member_names)
+            summary = f"Bond formed: {member_names} (leader: {bond.leader_name})"
+            if bond.mission_title:
+                summary += f" - Mission: {bond.mission_title}"
+            summaries.append(summary)
         
-        return "\n".join(action_summaries)
+        return "; ".join(summaries)
     
-    def _create_meetings_summary(self, meetings: List[MissionMeetingMessage]) -> str:
-        """Create a summary of mission meetings."""
-        if not meetings:
+    def _create_bond_dissolutions_summary(self, bonds_dissolved_details) -> str:
+        """Create a summary of bond dissolutions this tick."""
+        if not bonds_dissolved_details:
+            return "No bonds dissolved this tick"
+        
+        summaries = []
+        for bond in bonds_dissolved_details:
+            member_names = ", ".join(bond.member_names)
+            summary = f"Bond dissolved: {member_names} - {bond.reason}"
+            summaries.append(summary)
+        
+        return "; ".join(summaries)
+    
+    def _create_mission_details_summary(self, active_missions) -> str:
+        """Create a summary of active missions."""
+        if not active_missions:
+            return "No active missions"
+        
+        summaries = []
+        for mission in active_missions:
+            summary = f"Mission '{mission.title}': {mission.current_progress}"
+            if mission.is_complete:
+                summary += " (COMPLETED)"
+            summaries.append(summary)
+        
+        return "; ".join(summaries)
+    
+    def _create_mission_meeting_summaries(self, mission_meeting_summaries) -> str:
+        """Create a summary of mission meeting summaries."""
+        if not mission_meeting_summaries:
             return "No mission meetings this tick"
         
-        # Group by mission
-        missions = {}
-        for message in meetings:
-            if hasattr(message, 'mission_id'):
-                if message.mission_id not in missions:
-                    missions[message.mission_id] = []
-                missions[message.mission_id].append(message)
-        
         summaries = []
-        for mission_id, messages in missions.items():
-            summary = f"Mission {mission_id}: {len(messages)} messages exchanged"
+        for meeting in mission_meeting_summaries:
+            summary = f"Mission '{meeting.mission_title}' meeting: "
+            summary += f"{len(meeting.meeting_messages)} messages, "
+            summary += f"{len(meeting.agent_responses)} agent responses, "
+            summary += f"{len(meeting.task_assignments)} task assignments"
             summaries.append(summary)
         
         return "; ".join(summaries)
     
-    def _create_spark_summary(self, transactions: List[SparkTransaction]) -> str:
-        """Create a summary of spark transactions."""
-        if not transactions:
-            return "No spark transactions this tick"
+    def _create_action_results_summary(self, action_processing_results) -> str:
+        """Create a summary of action processing results."""
+        if not action_processing_results:
+            return "No action results this tick"
         
         summaries = []
-        for tx in transactions:
-            summary = f"{tx.from_entity} → {tx.to_entity}: {tx.amount} sparks ({tx.transaction_type})"
+        for result in action_processing_results:
+            summary = f"{result.action.agent_id}: {result.action.intent} - "
+            summary += f"{'SUCCESS' if result.success else 'FAILED'} - "
+            summary += f"{result.result_description}"
+            if result.spark_impact != 0:
+                summary += f" (spark impact: {result.spark_impact:+d})"
             summaries.append(summary)
         
         return "; ".join(summaries)
     
-    def _create_bob_summary(self, responses: List[BobResponse]) -> str:
-        """Create a summary of Bob's interactions."""
-        if not responses:
+    def _create_spark_distribution_summary(self, spark_distribution_details) -> str:
+        """Create a summary of spark distribution details."""
+        if not spark_distribution_details:
+            return "No spark distribution this tick"
+        
+        summaries = []
+        for distribution in spark_distribution_details:
+            summary = f"{distribution.bond_name}: {distribution.total_sparks_generated} sparks generated, "
+            recipient_summaries = []
+            for detail in distribution.distribution_details:
+                recipient_summaries.append(f"{detail['recipient_name']} (+{detail['sparks_received']})")
+            summary += "distributed to " + ", ".join(recipient_summaries)
+            summaries.append(summary)
+        
+        return "; ".join(summaries)
+    
+    def _create_vanished_agents_summary(self, vanished_agents_context) -> str:
+        """Create a summary of vanished agents context."""
+        if not vanished_agents_context:
+            return "No agents vanished this tick"
+        
+        summaries = []
+        for context in vanished_agents_context:
+            summary = f"{context.agent_name} vanished: "
+            summary += f"final sparks {context.final_sparks}, age {context.final_age}, "
+            summary += f"reason: {context.vanishing_reason}"
+            if context.bond_members:
+                summary += f", was bonded with {', '.join(context.bond_members)}"
+            if context.mission_involvement:
+                summary += f", was part of mission '{context.mission_involvement}'"
+            summaries.append(summary)
+        
+        return "; ".join(summaries)
+    
+    def _create_bob_context_summary(self, bob_context) -> str:
+        """Create a summary of Bob's context."""
+        if not bob_context:
             return "No Bob interactions this tick"
         
-        summaries = []
-        for response in responses:
-            summary = f"Bob granted {response.sparks_granted} sparks to {response.requesting_agent_id}: '{response.reasoning[:100]}...'"
-            summaries.append(summary)
+        summary = f"Bob's sparks: {bob_context.bob_sparks_before} -> {bob_context.bob_sparks_after} "
+        summary += f"(gained {bob_context.bob_sparks_gained})"
         
-        return "; ".join(summaries)
+        if bob_context.requests_received:
+            summary += f"; {len(bob_context.requests_received)} requests received"
+        
+        if bob_context.decisions_made:
+            summary += f"; {len(bob_context.decisions_made)} decisions made"
+        
+        if bob_context.reasoning_patterns:
+            summary += f"; reasoning patterns: {', '.join(bob_context.reasoning_patterns[:3])}"
+        
+        return summary
     
+    def _create_tick_statistics_summary(self, tick_statistics) -> str:
+        """Create a summary of tick statistics."""
+        if not tick_statistics:
+            return "No statistics available"
+        
+        summary = f"Tick stats: "
+        summary += f"{tick_statistics.total_sparks_minted} minted, "
+        summary += f"{tick_statistics.total_sparks_lost} lost, "
+        summary += f"{tick_statistics.total_sparks_distributed} distributed, "
+        summary += f"{tick_statistics.total_raids_attempted} raids ({tick_statistics.total_raids_successful} successful), "
+        summary += f"{tick_statistics.total_bonds_active} active bonds, "
+        summary += f"{tick_statistics.total_missions_active} active missions, "
+        summary += f"{tick_statistics.total_agents_alive} living agents, "
+        summary += f"{tick_statistics.total_agents_vanished} vanished, "
+        summary += f"{tick_statistics.total_agents_spawned} spawned"
+        
+        return summary 
+
     def _generate_character_insights(self, input_data: StorytellerInput) -> List[Dict]:
         """Generate deep insights into specific characters."""
         insights = []
@@ -422,9 +512,14 @@ class Storyteller:
             if agent_id in input_data.world_state.agents:
                 agent = input_data.world_state.agents[agent_id]
                 
-                # Get agent's actions
+                # Get agent's actions and results
                 agent_actions = [a for a in input_data.agent_actions if a.agent_id == agent_id]
-                actions_text = self._create_actions_summary(agent_actions)
+                agent_results = []
+                if input_data.action_processing_results:
+                    agent_results = [r for r in input_data.action_processing_results if r.action.agent_id == agent_id]
+                
+                # Create action summary using enhanced data
+                actions_text = self._create_action_summary_for_insights(agent_actions, agent_results)
                 
                 # Get agent's relationships
                 relationships = []
@@ -452,6 +547,33 @@ class Storyteller:
                 })
         
         return insights
+    
+    def _create_action_summary_for_insights(self, actions: List[ActionMessage], results: List[ActionProcessingResult]) -> str:
+        """Create a summary of agent actions for character insights."""
+        if not actions:
+            return "No actions taken this tick"
+        
+        summaries = []
+        for action in actions:
+            summary = f"{action.intent}"
+            if action.target:
+                # Clean target field to extract just the agent_id
+                clean_target = action.target.split('#')[0].split('because')[0].split(' - ')[0].split(' (')[0].strip()
+                summary += f" targeting {clean_target}"
+            if action.content:
+                summary += f" - '{action.content[:50]}...'"
+            if action.reasoning:
+                summary += f" (Reasoning: {action.reasoning[:100]}...)"
+            
+            # Add result if available
+            for result in results:
+                if result.action == action:
+                    summary += f" - {'SUCCESS' if result.success else 'FAILED'}: {result.result_description}"
+                    break
+            
+            summaries.append(summary)
+        
+        return "\n".join(summaries)
     
     def get_story_summary(self) -> str:
         """Get a summary of the entire story so far."""

@@ -64,7 +64,8 @@ def run_single_tick():
                 'quirk': agent.quirk,
                 'ability': agent.ability,
                 'opening_goal': agent.opening_goal,
-                'backstory': agent.backstory
+                'backstory': agent.backstory,
+                'speech_style': agent.speech_style
             }
         
         # Capture bond requests for display

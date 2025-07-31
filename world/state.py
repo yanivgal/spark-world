@@ -47,6 +47,7 @@ class Agent:
     home_realm: str
     backstory: str
     opening_goal: str
+    speech_style: str
 
 
 @dataclass
@@ -122,4 +123,37 @@ class WorldState:
     total_bonds_formed: int = 0
     
     # Storyteller output
-    storyteller_output: Optional[object] = None  # Will store StorytellerOutput 
+    storyteller_output: Optional[object] = None  # Will store StorytellerOutput
+    
+    # Agent state tracking
+    agent_spark_changes: Dict[str, int] = field(default_factory=dict)  # agent_id -> spark change this tick
+    agent_age_changes: Dict[str, int] = field(default_factory=dict)    # agent_id -> age change this tick
+    agent_status_changes: Dict[str, str] = field(default_factory=dict) # agent_id -> status change this tick
+    agent_bond_status_changes: Dict[str, str] = field(default_factory=dict) # agent_id -> bond status change this tick
+    
+    # Bond tracking
+    bonds_formed_details: List[Dict] = field(default_factory=list)  # Detailed bond formation info
+    bonds_dissolved_details: List[Dict] = field(default_factory=list)  # Detailed bond dissolution info
+    
+    # Mission tracking
+    mission_progress_updates: List[Dict] = field(default_factory=list)  # Mission progress changes this tick
+    mission_meeting_summaries: List[Dict] = field(default_factory=list)  # Meeting summaries this tick
+    
+    # Action tracking
+    action_processing_results: List[Dict] = field(default_factory=list)  # Results of processing actions
+    failed_actions: List[Dict] = field(default_factory=list)  # Actions that failed
+    
+    # Spark tracking
+    spark_distribution_details: List[Dict] = field(default_factory=list)  # Who got what from bonds
+    spark_minting_details: List[Dict] = field(default_factory=list)  # Bond spark generation details
+    
+    # Agent vanishing tracking
+    vanished_agents_context: List[Dict] = field(default_factory=list)  # Context for vanished agents
+    
+    # Bob tracking
+    bob_sparks_before: int = 0  # Bob's sparks at start of tick
+    bob_sparks_after: int = 0   # Bob's sparks at end of tick
+    bob_requests_received: List[Dict] = field(default_factory=list)  # Full context of requests
+    
+    # Tick statistics
+    tick_statistics: Dict = field(default_factory=dict)  # Summary statistics for this tick 

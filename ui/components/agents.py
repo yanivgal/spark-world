@@ -107,8 +107,8 @@ def create_agent_card(agent_id, agent):
         st.markdown(f"🎭 **Quirk:** {agent.quirk}")
         st.markdown(f"⚡ **Ability:** {agent.ability}")
         st.markdown(f"🎯 **Goal:** *{agent.opening_goal}*")
+        st.markdown(f"🗣️ **Speech Style:** *{agent.speech_style}*")
         
-        # Fixed-size scrollable backstory box
         st.markdown("**📚 Backstory:**")
         st.markdown(f'<div class="backstory-box">{agent.backstory}</div>', unsafe_allow_html=True)
         

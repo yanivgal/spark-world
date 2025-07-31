@@ -45,7 +45,11 @@ def create_test_observation_packet(scenario: str = "basic") -> ObservationPacket
         sparks=8,
         status=AgentStatus.ALIVE,
         bond_status=BondStatus.UNBONDED,
-        bond_members=[]
+        bond_members=[],
+        home_realm="Living Room",
+        backstory="Born in a cozy living room, Whiskers learned to protect his territory from early age.",
+        opening_goal="To establish a safe haven for all house pets",
+        speech_style="Speaks with pride and authority. Uses confident, commanding words like 'protect', 'defend', 'territory'. Short, direct sentences with a noble tone. Often mentions safety and protection."
     )
     
     # Base world news
@@ -62,7 +66,8 @@ def create_test_observation_packet(scenario: str = "basic") -> ObservationPacket
             "other_agent_002": {"name": "Shadow", "species": "mystical raven", "realm": "Attic"},
             "other_agent_003": {"name": "Bubbles", "species": "golden fish", "realm": "Aquarium"},
             "new_agent_456": {"name": "Echo", "species": "whispering fern", "realm": "Garden"}
-        }
+        },
+        bob_sparks=25
     )
     
     if scenario == "basic":
@@ -90,7 +95,11 @@ def create_test_observation_packet(scenario: str = "basic") -> ObservationPacket
             sparks=12,
             status=AgentStatus.ALIVE,
             bond_status=BondStatus.BONDED,
-            bond_members=["test_agent_001", "other_agent_002"]
+            bond_members=["test_agent_001", "other_agent_002"],
+            home_realm="Living Room",
+            backstory="Whiskers the Brave, a noble saber-toothed house-cat, was born in a cozy living room. His fierce nature and protective instincts led him to form a bond with Shadow the mystical raven, who provided him with wisdom and the ability to sense danger from afar.",
+            opening_goal="To protect the living room from intruders and establish a safe haven for all house pets.",
+            speech_style="Speaks with pride and authority. Uses confident, commanding words like 'protect', 'defend', 'territory'. Short, direct sentences with a noble tone. Often mentions safety and protection."
         )
         
         return ObservationPacket(
@@ -139,7 +148,11 @@ def create_test_observation_packet(scenario: str = "basic") -> ObservationPacket
             sparks=15,
             status=AgentStatus.ALIVE,
             bond_status=BondStatus.LEADER,
-            bond_members=["test_agent_001", "other_agent_002", "other_agent_003"]
+            bond_members=["test_agent_001", "other_agent_002", "other_agent_003"],
+            home_realm="Living Room",
+            backstory="Whiskers the Brave, now the leader of a bond, was born in a cozy living room. His fierce nature and protective instincts led him to form a bond with Shadow the mystical raven and Bubbles the golden fish, who provided him with wisdom and the ability to sense danger from afar.",
+            opening_goal="To protect the living room from intruders and establish a safe haven for all house pets.",
+            speech_style="Speaks with pride and authority. Uses confident, commanding words like 'protect', 'defend', 'territory'. Short, direct sentences with a noble tone. Often mentions safety and protection."
         )
         
         mission_status = MissionStatus(

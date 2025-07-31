@@ -42,7 +42,8 @@ def test_storyteller_personalities():
         bond_members=[],
         home_realm="The Luminous Veil",
         backstory="Once a guardian of lost dreams, now seeks to restore hope",
-        opening_goal="To find and restore a lost dream"
+        opening_goal="To find and restore a lost dream",
+        speech_style="poetic and mysterious"
     )
     
     agent2 = Agent(
@@ -59,7 +60,8 @@ def test_storyteller_personalities():
         bond_members=[],
         home_realm="The Glimmering Vale",
         backstory="A guardian of lost dreams seeking to restore forgotten hopes",
-        opening_goal="To revive a forgotten dreamer"
+        opening_goal="To revive a forgotten dreamer",
+        speech_style="gentle and curious"
     )
     
     world_state.agents["agent_001"] = agent1
@@ -137,7 +139,8 @@ def test_story_continuity():
         bond_members=[],
         home_realm="The Luminous Veil",
         backstory="A guardian of lost dreams",
-        opening_goal="To restore hope"
+        opening_goal="To restore hope",
+        speech_style="poetic and mysterious"
     )
     world_state.agents["agent_001"] = agent
     

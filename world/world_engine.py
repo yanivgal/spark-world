@@ -10,6 +10,7 @@ from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass, asdict
 from datetime import datetime
 import uuid
+import copy
 
 from ai_client import get_dspy
 from world.state import WorldState, Agent, Bond, Mission, AgentStatus, BondStatus
@@ -18,7 +19,11 @@ from world.mission_system import MissionSystem
 from world.mission_meeting_coordinator import MissionMeetingCoordinator
 from agents.agent_decision import AgentDecisionModule
 from storytelling.storyteller import Storyteller
-from storytelling.storyteller_structures import StorytellerInput
+from storytelling.storyteller_structures import (
+    StorytellerInput, AgentChange, BondFormationDetail, BondDissolutionDetail,
+    MissionMeetingSummary, MissionProgressUpdate, ActionProcessingResult,
+    SparkDistributionDetail, AgentVanishingContext, BobContext, TickStatistics
+)
 from agents.bob_decision import BobDecisionModule
 from shard_sower import ShardSower
 from communication.messages.action_message import ActionMessage
@@ -115,6 +120,7 @@ class WorldEngine:
                     home_realm TEXT,
                     backstory TEXT,
                     opening_goal TEXT,
+                    speech_style TEXT,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY (simulation_id) REFERENCES simulations (id)
                 );
@@ -272,6 +278,9 @@ class WorldEngine:
         # Load current state
         self.load_state(simulation_id)
         
+        # Capture world state BEFORE the tick begins
+        world_state_before = self._capture_world_state_snapshot()
+        
         # Increment tick
         self.world_state.tick += 1
         
@@ -287,6 +296,23 @@ class WorldEngine:
         self.world_state.bonds_formed_this_tick = []
         self.world_state.bonds_dissolved_this_tick = []
         self.world_state.bond_requests_for_display = {}  # Clear display bond requests
+        
+        # Clear enhanced tracking data
+        self.world_state.agent_spark_changes.clear()
+        self.world_state.agent_age_changes.clear()
+        self.world_state.agent_status_changes.clear()
+        self.world_state.agent_bond_status_changes.clear()
+        self.world_state.bonds_formed_details.clear()
+        self.world_state.bonds_dissolved_details.clear()
+        self.world_state.mission_progress_updates.clear()
+        self.world_state.mission_meeting_summaries.clear()
+        self.world_state.action_processing_results.clear()
+        self.world_state.failed_actions.clear()
+        self.world_state.spark_distribution_details.clear()
+        self.world_state.spark_minting_details.clear()
+        self.world_state.vanished_agents_context.clear()
+        self.world_state.bob_requests_received.clear()
+        self.world_state.tick_statistics.clear()
         
         # Track this tick's spark generation and loss
         self.sparks_minted_this_tick = 0
@@ -320,7 +346,7 @@ class WorldEngine:
         
         # Stage 6: Storytime (Storyteller)
         self.world_state.current_processing_stage = "storytime"
-        stage_results["storytime"] = self._stage_6_storytime()
+        stage_results["storytime"] = self._stage_6_storytime(world_state_before)
         
         # Save state
         self.save_state(simulation_id)
@@ -397,13 +423,30 @@ class WorldEngine:
     
     def _stage_2_bob_decides(self) -> str:
         """Stage 2: Bob processes spark requests from previous tick."""
+        # Store Bob's sparks before decisions
+        self.world_state.bob_sparks_before = self.world_state.bob_sparks
+        
         # Get all request_spark actions from previous tick
         spark_requests = self.world_state.pending_spark_requests.copy()
         
         if not spark_requests:
             # Add Bob's regeneration even if no requests
             self.world_state.bob_sparks += self.world_state.bob_sparks_per_tick
+            self.world_state.bob_sparks_after = self.world_state.bob_sparks
             return "No spark requests to process"
+        
+        # Track requests received for Storyteller
+        for request in spark_requests:
+            requester_name = ""
+            if request.agent_id in self.world_state.agents:
+                requester_name = self.world_state.agents[request.agent_id].name
+            
+            self.world_state.bob_requests_received.append({
+                "agent_id": request.agent_id,
+                "agent_name": requester_name,
+                "content": request.content,
+                "reasoning": request.reasoning
+            })
         
         # Process with Bob decision module
         bob_responses = self.bob_decision_module.process_spark_requests(
@@ -445,16 +488,10 @@ class WorldEngine:
                     }
                 )
         
-        # Update Bob's spark count
-        self.world_state.bob_sparks = max(0, self.world_state.bob_sparks - total_granted)
+        # Store Bob's sparks after decisions
+        self.world_state.bob_sparks_after = self.world_state.bob_sparks
         
-        # Add Bob's regeneration
-        self.world_state.bob_sparks += self.world_state.bob_sparks_per_tick
-        
-        # Clear processed requests
-        self.world_state.pending_spark_requests.clear()
-        
-        return f"Bob granted {total_granted} sparks to {len([r for r in bob_responses if r.sparks_granted > 0])} agents"
+        return f"Bob granted {total_granted} sparks to {len(bob_responses)} agents"
     
     def _stage_3_agents_act(self) -> str:
         """Stage 3: All agents make their decisions and take actions."""
@@ -495,12 +532,23 @@ class WorldEngine:
                 # Get bond members
                 bond_members = list(bond.members)
                 
+                # Track distribution details for Storyteller
+                distribution_details = []
+                bond_name = f"Bond {bond.bond_id}"
+                
                 # Distribute sparks one by one randomly
                 for _ in range(bond.sparks_generated_this_tick):
                     recipient_id = random.choice(bond_members)
                     recipient = self.world_state.agents[recipient_id]
                     recipient.sparks += 1
                     total_distributed += 1
+                    
+                    # Track individual distribution
+                    distribution_details.append({
+                        "recipient_id": recipient_id,
+                        "recipient_name": recipient.name,
+                        "sparks_received": 1
+                    })
                     
                     # Log spark transaction
                     self._log_spark_transaction(
@@ -510,6 +558,14 @@ class WorldEngine:
                         transaction_type="bond_distribution",
                         reason=f"Random distribution within bond {bond.bond_id}"
                     )
+                
+                # Store distribution details for Storyteller
+                self.world_state.spark_distribution_details.append({
+                    "bond_id": bond.bond_id,
+                    "bond_name": bond_name,
+                    "total_sparks_generated": bond.sparks_generated_this_tick,
+                    "distribution_details": distribution_details
+                })
         
         return f"Distributed {total_distributed} sparks randomly within bonds"
     
@@ -555,21 +611,53 @@ class WorldEngine:
         
         self.world_state.mission_meetings_in_progress = False
     
-    def _stage_6_storytime(self) -> str:
+    def _stage_6_storytime(self, world_state_before: WorldState) -> str:
         """Stage 6: Generate narrative using the Storyteller."""
         try:
+            # Collect all enhanced data for the Storyteller
+            agent_changes = self._collect_agent_changes(world_state_before)
+            bonds_formed_details = self._collect_bond_formation_details()
+            bonds_dissolved_details = self._collect_bond_dissolution_details()
+            mission_meeting_summaries = self._collect_mission_meeting_summaries()
+            mission_progress_updates = self._collect_mission_progress_updates()
+            action_processing_results, failed_actions = self._collect_action_processing_results()
+            spark_distribution_details = self._collect_spark_distribution_details()
+            vanished_agents_context = self._collect_vanished_agents_context()
+            bob_context = self._collect_bob_context(world_state_before)
+            tick_statistics = self._collect_tick_statistics()
+            
+            # Get active missions
+            active_missions = list(self.world_state.missions.values())
+            
             # Collect all data for the Storyteller
             input_data = StorytellerInput(
                 tick=self.world_state.tick,
                 storyteller_personality=self.storyteller.personality,
                 world_state=self.world_state,
-                agent_actions=self.world_state.pending_actions.copy(),
-                raid_results=self.world_state.raid_results_this_tick.copy(),  # Use collected raid results
-                spark_transactions=self.world_state.spark_transactions_this_tick.copy(),  # Use collected spark transactions
-                bob_responses=self.world_state.bob_responses_this_tick.copy(), # Use stored Bob responses
+                agent_actions=self.world_state.agent_actions_for_logging.copy(),
+                raid_results=self.world_state.raid_results_this_tick.copy(),
+                spark_transactions=self.world_state.spark_transactions_this_tick.copy(),
+                bob_responses=self.world_state.bob_responses_this_tick.copy(),
                 mission_meeting_messages=self.world_state.mission_meeting_messages.copy(),
                 events_this_tick=self.world_state.events_this_tick.copy(),
-                is_game_start=(self.world_state.tick == 1)
+                is_game_start=(self.world_state.tick == 1),
+                
+                # NEW: Enhanced data for rich storytelling
+                world_state_before=world_state_before,
+                world_state_after=self.world_state,
+                agent_changes=agent_changes,
+                bonds_formed_details=bonds_formed_details,
+                bonds_dissolved_details=bonds_dissolved_details,
+                active_missions=active_missions,
+                mission_meeting_summaries=mission_meeting_summaries,
+                mission_progress_updates=mission_progress_updates,
+                action_processing_results=action_processing_results,
+                failed_actions=failed_actions,
+                spark_distribution_details=spark_distribution_details,
+                spark_minting_details=self.world_state.spark_minting_details.copy(),
+                vanished_agents_context=vanished_agents_context,
+                bob_context=bob_context,
+                tick_statistics=tick_statistics
             )
             
             # Generate narrative
@@ -622,7 +710,11 @@ class WorldEngine:
                     sparks=agent.sparks,
                     status=agent.status,
                     bond_status=agent.bond_status,
-                    bond_members=agent.bond_members
+                    bond_members=agent.bond_members,
+                    home_realm=agent.home_realm,
+                    backstory=agent.backstory,
+                    opening_goal=agent.opening_goal,
+                    speech_style=agent.speech_style
                 )
                 
                 # Create events since last tick
@@ -839,6 +931,26 @@ class WorldEngine:
             agent.bond_status = BondStatus.BONDED
             agent.bond_members = [aid for aid in agent_ids if aid != agent_id]  # All other members
         
+        # Track bond formation details for Storyteller
+        member_names = []
+        for agent_id in agent_ids:
+            if agent_id in self.world_state.agents:
+                member_names.append(self.world_state.agents[agent_id].name)
+        
+        leader_name = ""
+        if bond.leader_id in self.world_state.agents:
+            leader_name = self.world_state.agents[bond.leader_id].name
+        
+        self.world_state.bonds_formed_details.append({
+            "bond_id": bond_id,
+            "member_ids": agent_ids,
+            "member_names": member_names,
+            "leader_id": bond.leader_id,
+            "leader_name": leader_name,
+            "mission_id": None,
+            "mission_title": None
+        })
+        
         # Log bond formation event
         self._log_event(
             simulation_id=1,  # TODO: Get from context
@@ -846,8 +958,10 @@ class WorldEngine:
             event_type="bond_formed",
             data={
                 "bond_id": bond_id,
-                "agent_ids": agent_ids,
-                "leader_id": agent_ids[0]
+                "members": agent_ids,
+                "member_names": member_names,
+                "leader_id": bond.leader_id,
+                "leader_name": leader_name
             }
         )
         
@@ -953,6 +1067,15 @@ class WorldEngine:
                         "reason": "Attacker has no sparks to risk"
                     }
                 )
+                
+                # Track failed action for Storyteller
+                self.world_state.action_processing_results.append({
+                    "action": action,
+                    "success": False,
+                    "result_description": "Failed: Attacker has no sparks to risk",
+                    "spark_impact": 0,
+                    "target_affected": target_id
+                })
                 return
             
             # Calculate strengths (before any spark changes)
@@ -979,6 +1102,15 @@ class WorldEngine:
                     transaction_type="raid_success",
                     reason=f"Successful raid: {attacker_strength} vs {defender_strength} strength"
                 )
+                
+                # Track successful action for Storyteller
+                self.world_state.action_processing_results.append({
+                    "action": action,
+                    "success": True,
+                    "result_description": f"Successful raid: stole {steal_amount} sparks",
+                    "spark_impact": steal_amount,
+                    "target_affected": target_id
+                })
             else:
                 # Defender steals 1 spark from attacker (this is the "risk")
                 attacker.sparks -= 1
@@ -993,6 +1125,15 @@ class WorldEngine:
                     transaction_type="raid_failure",
                     reason=f"Failed raid: {attacker_strength} vs {defender_strength} strength"
                 )
+                
+                # Track failed action for Storyteller
+                self.world_state.action_processing_results.append({
+                    "action": action,
+                    "success": False,
+                    "result_description": f"Failed raid: lost 1 spark to defender",
+                    "spark_impact": -1,
+                    "target_affected": target_id
+                })
             
             # Create raid result
             raid_result = RaidResult(
@@ -1089,6 +1230,32 @@ class WorldEngine:
         agent.status = AgentStatus.VANISHED
         self.world_state.agents_vanished_this_tick.append(agent_id)
         
+        # Track vanishing context for Storyteller
+        bond_members = []
+        mission_involvement = None
+        
+        # Find bond members
+        for bond in self.world_state.bonds.values():
+            if agent_id in bond.members:
+                for member_id in bond.members:
+                    if member_id != agent_id and member_id in self.world_state.agents:
+                        bond_members.append(self.world_state.agents[member_id].name)
+                
+                # Check for mission involvement
+                if bond.mission_id and bond.mission_id in self.world_state.missions:
+                    mission_involvement = self.world_state.missions[bond.mission_id].title
+                break
+        
+        self.world_state.vanished_agents_context.append({
+            "agent_id": agent_id,
+            "agent_name": agent.name,
+            "final_sparks": agent.sparks,
+            "final_age": agent.age,
+            "bond_members": bond_members,
+            "mission_involvement": mission_involvement,
+            "vanishing_reason": "upkeep_cost"  # Could be enhanced to track other reasons
+        })
+        
         # Dissolve bonds containing this agent
         bonds_to_dissolve = []
         for bond_id, bond in self.world_state.bonds.items():
@@ -1106,13 +1273,29 @@ class WorldEngine:
             data={
                 "agent_id": agent_id,
                 "agent_name": agent.name,
-                "final_sparks": agent.sparks
+                "final_sparks": agent.sparks,
+                "final_age": agent.age,
+                "bond_members": bond_members,
+                "mission_involvement": mission_involvement
             }
         )
     
     def _dissolve_bond(self, bond_id: str):
         """Dissolve a bond and update all member agents."""
         bond = self.world_state.bonds[bond_id]
+        
+        # Track bond dissolution details for Storyteller
+        member_names = []
+        for member_id in bond.members:
+            if member_id in self.world_state.agents:
+                member_names.append(self.world_state.agents[member_id].name)
+        
+        self.world_state.bonds_dissolved_details.append({
+            "bond_id": bond_id,
+            "member_ids": list(bond.members),
+            "member_names": member_names,
+            "reason": "Bond dissolved due to member vanishing or mission completion"
+        })
         
         # Update all member agents
         for agent_id in bond.members:
@@ -1173,13 +1356,13 @@ class WorldEngine:
             for agent in self.world_state.agents.values():
                 conn.execute("""
                     INSERT OR REPLACE INTO agents 
-                    (id, simulation_id, name, species, personality, quirk, ability, age, sparks, status, bond_status, bond_members, home_realm, backstory, opening_goal)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    (id, simulation_id, name, species, personality, quirk, ability, age, sparks, status, bond_status, bond_members, home_realm, backstory, opening_goal, speech_style)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     agent.agent_id, simulation_id, agent.name, agent.species,
                     json.dumps(agent.personality), agent.quirk, agent.ability,
                     agent.age, agent.sparks, agent.status.value, agent.bond_status.value,
-                    json.dumps(agent.bond_members), agent.home_realm, agent.backstory, agent.opening_goal
+                    json.dumps(agent.bond_members), agent.home_realm, agent.backstory, agent.opening_goal, agent.speech_style
                 ))
             
             # Save bonds
@@ -1226,7 +1409,8 @@ class WorldEngine:
                     bond_members=json.loads(row[11]),
                     home_realm=row[12],
                     backstory=row[13],
-                    opening_goal=row[14]
+                    opening_goal=row[14],
+                    speech_style=row[15]
                 )
                 agents[agent.agent_id] = agent
             
@@ -1262,4 +1446,285 @@ class WorldEngine:
             # Update world state
             self.world_state.agents = agents
             self.world_state.bonds = bonds
-            self.world_state.missions = missions 
+            self.world_state.missions = missions
+    
+    def _capture_world_state_snapshot(self) -> WorldState:
+        """Create a deep copy of the current world state for before/after comparison."""
+        # Create a deep copy of the world state
+        snapshot = copy.deepcopy(self.world_state)
+        return snapshot
+    
+    def _collect_agent_changes(self, world_state_before: WorldState) -> List[AgentChange]:
+        """Collect all agent changes that occurred during this tick."""
+        agent_changes = []
+        
+        for agent_id, agent_after in self.world_state.agents.items():
+            if agent_id in world_state_before.agents:
+                agent_before = world_state_before.agents[agent_id]
+                
+                # Calculate changes
+                spark_change = agent_after.sparks - agent_before.sparks
+                age_change = agent_after.age - agent_before.age
+                status_change = None
+                bond_status_change = None
+                bond_members_change = None
+                
+                # Check for status changes
+                if agent_after.status != agent_before.status:
+                    status_change = f"{agent_before.status.value} -> {agent_after.status.value}"
+                
+                # Check for bond status changes
+                if agent_after.bond_status != agent_before.bond_status:
+                    bond_status_change = f"{agent_before.bond_status.value} -> {agent_after.bond_status.value}"
+                
+                # Check for bond members changes
+                if agent_after.bond_members != agent_before.bond_members:
+                    bond_members_change = agent_after.bond_members
+                
+                # Only create change record if there were actual changes
+                if (spark_change != 0 or age_change != 0 or status_change or 
+                    bond_status_change or bond_members_change):
+                    agent_changes.append(AgentChange(
+                        agent_id=agent_id,
+                        agent_name=agent_after.name,
+                        spark_change=spark_change,
+                        age_change=age_change,
+                        status_change=status_change,
+                        bond_status_change=bond_status_change,
+                        bond_members_change=bond_members_change
+                    ))
+        
+        return agent_changes
+    
+    def _collect_bond_formation_details(self) -> List[BondFormationDetail]:
+        """Collect detailed information about bonds formed this tick."""
+        bond_details = []
+        
+        for bond_id in self.world_state.bonds_formed_this_tick:
+            if bond_id in self.world_state.bonds:
+                bond = self.world_state.bonds[bond_id]
+                
+                # Get member names
+                member_names = []
+                for member_id in bond.members:
+                    if member_id in self.world_state.agents:
+                        member_names.append(self.world_state.agents[member_id].name)
+                
+                # Get leader name
+                leader_name = ""
+                if bond.leader_id in self.world_state.agents:
+                    leader_name = self.world_state.agents[bond.leader_id].name
+                
+                # Get mission info if exists
+                mission_id = bond.mission_id
+                mission_title = None
+                if mission_id and mission_id in self.world_state.missions:
+                    mission_title = self.world_state.missions[mission_id].title
+                
+                bond_details.append(BondFormationDetail(
+                    bond_id=bond_id,
+                    member_ids=list(bond.members),
+                    member_names=member_names,
+                    leader_id=bond.leader_id,
+                    leader_name=leader_name,
+                    mission_id=mission_id,
+                    mission_title=mission_title
+                ))
+        
+        return bond_details
+    
+    def _collect_bond_dissolution_details(self) -> List[BondDissolutionDetail]:
+        """Collect detailed information about bonds dissolved this tick."""
+        bond_details = []
+        
+        for bond_id in self.world_state.bonds_dissolved_this_tick:
+            # Get bond info from before dissolution (stored in world state tracking)
+            for detail in self.world_state.bonds_dissolved_details:
+                if detail.get('bond_id') == bond_id:
+                    bond_details.append(BondDissolutionDetail(
+                        bond_id=bond_id,
+                        member_ids=detail.get('member_ids', []),
+                        member_names=detail.get('member_names', []),
+                        reason=detail.get('reason', 'Unknown')
+                    ))
+                    break
+        
+        return bond_details
+    
+    def _collect_mission_meeting_summaries(self) -> List[MissionMeetingSummary]:
+        """Collect detailed summaries of mission meetings this tick."""
+        meeting_summaries = []
+        
+        # Group meeting messages by mission
+        mission_meetings = {}
+        for message in self.world_state.mission_meeting_messages:
+            mission_id = message.mission_id
+            if mission_id not in mission_meetings:
+                mission_meetings[mission_id] = []
+            mission_meetings[mission_id].append(message)
+        
+        # Create summaries for each mission
+        for mission_id, messages in mission_meetings.items():
+            if mission_id in self.world_state.missions:
+                mission = self.world_state.missions[mission_id]
+                
+                # Get meeting flow
+                meeting_flow = [msg.message_type for msg in messages]
+                
+                # Get agent responses
+                agent_responses = {}
+                task_assignments = {}
+                
+                for message in messages:
+                    if message.message_type == "agent_response":
+                        agent_responses[message.sender_id] = message.content
+                    elif message.message_type == "task_assignment":
+                        # Parse task assignments from content (simplified)
+                        task_assignments[message.sender_id] = message.content
+                
+                # Get leader name
+                leader_name = ""
+                if mission.leader_id in self.world_state.agents:
+                    leader_name = self.world_state.agents[mission.leader_id].name
+                
+                meeting_summaries.append(MissionMeetingSummary(
+                    mission_id=mission_id,
+                    mission_title=mission.title,
+                    bond_id=mission.bond_id,
+                    leader_id=mission.leader_id,
+                    leader_name=leader_name,
+                    meeting_messages=messages,
+                    meeting_flow=meeting_flow,
+                    agent_responses=agent_responses,
+                    task_assignments=task_assignments
+                ))
+        
+        return meeting_summaries
+    
+    def _collect_mission_progress_updates(self) -> List[MissionProgressUpdate]:
+        """Collect mission progress updates for this tick."""
+        progress_updates = []
+        
+        for update in self.world_state.mission_progress_updates:
+            progress_updates.append(MissionProgressUpdate(
+                mission_id=update.get('mission_id', ''),
+                mission_title=update.get('mission_title', ''),
+                previous_progress=update.get('previous_progress', ''),
+                current_progress=update.get('current_progress', ''),
+                progress_change=update.get('progress_change', ''),
+                is_complete=update.get('is_complete', False),
+                completion_reasoning=update.get('completion_reasoning')
+            ))
+        
+        return progress_updates
+    
+    def _collect_action_processing_results(self) -> Tuple[List[ActionProcessingResult], List[ActionProcessingResult]]:
+        """Collect results of processing agent actions this tick."""
+        successful_actions = []
+        failed_actions = []
+        
+        for result in self.world_state.action_processing_results:
+            action_result = ActionProcessingResult(
+                action=result.get('action'),
+                success=result.get('success', False),
+                result_description=result.get('result_description', ''),
+                spark_impact=result.get('spark_impact', 0),
+                target_affected=result.get('target_affected')
+            )
+            
+            if action_result.success:
+                successful_actions.append(action_result)
+            else:
+                failed_actions.append(action_result)
+        
+        return successful_actions, failed_actions
+    
+    def _collect_spark_distribution_details(self) -> List[SparkDistributionDetail]:
+        """Collect details about spark distribution within bonds this tick."""
+        distribution_details = []
+        
+        for detail in self.world_state.spark_distribution_details:
+            distribution_details.append(SparkDistributionDetail(
+                bond_id=detail.get('bond_id', ''),
+                bond_name=detail.get('bond_name', ''),
+                total_sparks_generated=detail.get('total_sparks_generated', 0),
+                distribution_details=detail.get('distribution_details', [])
+            ))
+        
+        return distribution_details
+    
+    def _collect_vanished_agents_context(self) -> List[AgentVanishingContext]:
+        """Collect context for agents that vanished this tick."""
+        vanished_context = []
+        
+        for context in self.world_state.vanished_agents_context:
+            vanished_context.append(AgentVanishingContext(
+                agent_id=context.get('agent_id', ''),
+                agent_name=context.get('agent_name', ''),
+                final_sparks=context.get('final_sparks', 0),
+                final_age=context.get('final_age', 0),
+                bond_members=context.get('bond_members', []),
+                mission_involvement=context.get('mission_involvement'),
+                vanishing_reason=context.get('vanishing_reason', 'Unknown')
+            ))
+        
+        return vanished_context
+    
+    def _collect_bob_context(self, world_state_before: WorldState) -> BobContext:
+        """Collect complete context for Bob's decisions this tick."""
+        # Calculate Bob's spark changes
+        bob_sparks_before = world_state_before.bob_sparks
+        bob_sparks_after = self.world_state.bob_sparks
+        bob_sparks_gained = bob_sparks_after - bob_sparks_before
+        
+        # Get requests received
+        requests_received = self.world_state.bob_requests_received.copy()
+        
+        # Get decisions made
+        decisions_made = self.world_state.bob_responses_this_tick.copy()
+        
+        # Analyze reasoning patterns
+        reasoning_patterns = []
+        for response in decisions_made:
+            if hasattr(response, 'reasoning') and response.reasoning:
+                reasoning_patterns.append(response.reasoning)
+        
+        return BobContext(
+            bob_sparks_before=bob_sparks_before,
+            bob_sparks_after=bob_sparks_after,
+            bob_sparks_gained=bob_sparks_gained,
+            requests_received=requests_received,
+            decisions_made=decisions_made,
+            reasoning_patterns=reasoning_patterns
+        )
+    
+    def _collect_tick_statistics(self) -> TickStatistics:
+        """Collect summary statistics for this tick."""
+        # Count successful raids
+        successful_raids = sum(1 for result in self.world_state.raid_results_this_tick if result.success)
+        
+        # Count active bonds and missions
+        active_bonds = len(self.world_state.bonds)
+        active_missions = len([m for m in self.world_state.missions.values() if not m.is_complete])
+        
+        # Count living agents
+        living_agents = len([a for a in self.world_state.agents.values() if a.status == AgentStatus.ALIVE])
+        
+        # Calculate total sparks distributed
+        total_sparks_distributed = sum(
+            detail.get('total_sparks_generated', 0) 
+            for detail in self.world_state.spark_distribution_details
+        )
+        
+        return TickStatistics(
+            total_sparks_minted=self.sparks_minted_this_tick,
+            total_sparks_lost=self.sparks_lost_this_tick,
+            total_sparks_distributed=total_sparks_distributed,
+            total_raids_attempted=self.raids_attempted_this_tick,
+            total_raids_successful=successful_raids,
+            total_bonds_active=active_bonds,
+            total_missions_active=active_missions,
+            total_agents_alive=living_agents,
+            total_agents_vanished=len(self.world_state.agents_vanished_this_tick),
+            total_agents_spawned=len(self.world_state.agents_spawned_this_tick)
+        ) 

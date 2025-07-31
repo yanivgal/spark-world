@@ -23,6 +23,7 @@ class CharacterBlueprint:
         ability: Short ≤15-word power tied to species/quirk, usable once per tick
         backstory: ≤40 words, two sentences maximum
         opening_goal: Single clear desire
+        speech_style: How this character speaks and expresses themselves
     """
     name: str
     species: str
@@ -31,4 +32,5 @@ class CharacterBlueprint:
     quirk: str
     ability: str
     backstory: str
-    opening_goal: str 
+    opening_goal: str
+    speech_style: str 

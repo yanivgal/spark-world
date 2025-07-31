@@ -31,6 +31,10 @@ class AgentState:
     status: AgentStatus
     bond_status: BondStatus
     bond_members: List[str]  # List of agent_ids in the same bond, including self
+    home_realm: str
+    backstory: str
+    opening_goal: str
+    speech_style: str
 
 
 @dataclass

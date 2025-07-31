@@ -18,7 +18,7 @@ from ui.components.agents import display_agents_page
 
 # Mock agent data for testing
 class MockAgent:
-    def __init__(self, name, species, sparks, age, home_realm, personality, quirk, ability, goal, backstory):
+    def __init__(self, name, species, sparks, age, home_realm, personality, quirk, ability, goal, backstory, speech_style):
         self.name = name
         self.species = species
         self.sparks = sparks
@@ -29,6 +29,7 @@ class MockAgent:
         self.ability = ability
         self.opening_goal = goal
         self.backstory = backstory
+        self.speech_style = speech_style
         self.status = MockStatus('alive')
 
 class MockStatus:
@@ -48,7 +49,8 @@ class MockWorldState:
                 quirk="Speaks in riddles",
                 ability="Can see through time",
                 goal="Protect the ancient knowledge",
-                backstory="Born from starlight, Zara has guarded the secrets of the universe for centuries."
+                backstory="Born from starlight, Zara has guarded the secrets of the universe for centuries.",
+                speech_style="Speaks in mystical riddles and ancient wisdom. Uses words like 'destiny', 'fate', 'secrets'. Often asks philosophical questions. Calm, enigmatic tone with measured speech."
             ),
             'agent_2': MockAgent(
                 name="Krax the Warrior",
@@ -60,7 +62,8 @@ class MockWorldState:
                 quirk="Collects shiny objects",
                 ability="Unbreakable skin",
                 goal="Find the legendary forge",
-                backstory="Carved from living stone, Krax seeks to become the greatest blacksmith. Carved from living stone, Krax seeks to become the greatest blacksmith.\nCarved from living stone, Krax seeks to become the greatest blacksmith."
+                backstory="Carved from living stone, Krax seeks to become the greatest blacksmith. Carved from living stone, Krax seeks to become the greatest blacksmith.\nCarved from living stone, Krax seeks to become the greatest blacksmith.",
+                speech_style="Speaks with deep, rumbling authority. Uses strong words like 'honor', 'duty', 'strength'. Short, direct sentences. Commanding and loyal tone."
             ),
             'agent_3': MockAgent(
                 name="Luna the Dreamer",
@@ -72,7 +75,8 @@ class MockWorldState:
                 quirk="Glows in the dark",
                 ability="Can enter dreams",
                 goal="Paint the most beautiful picture",
-                backstory="Born during a lunar eclipse, Luna brings beauty to the world through art."
+                backstory="Born during a lunar eclipse, Luna brings beauty to the world through art.",
+                speech_style="Speaks with dreamy wonder and artistic passion. Uses beautiful words like 'magic', 'dreams', 'beauty'. Often describes things poetically. Gentle, optimistic tone."
             ),
             'agent_4': MockAgent(
                 name="Thorn the Hunter",
@@ -84,7 +88,8 @@ class MockWorldState:
                 quirk="Can talk to animals",
                 ability="Perfect camouflage",
                 goal="Track the legendary beast",
-                backstory="Raised by wolves, Thorn has become the greatest tracker in the realm."
+                backstory="Raised by wolves, Thorn has become the greatest tracker in the realm.",
+                speech_style="Speaks quietly and with focused determination. Uses hunting words like 'track', 'hunt', 'prey'. Short, precise sentences. Stealthy and solitary tone."
             ),
             'agent_5': MockAgent(
                 name="Blitz the Inventor",
@@ -96,7 +101,8 @@ class MockWorldState:
                 quirk="Constantly tinkering",
                 ability="Can build anything",
                 goal="Create the perfect machine",
-                backstory="Built by a mad scientist, Blitz seeks to improve upon his own design."
+                backstory="Built by a mad scientist, Blitz seeks to improve upon his own design.",
+                speech_style="Speaks with mechanical precision and excited energy. Uses technical words like 'invent', 'create', 'improve'. Fast, enthusiastic speech with lots of exclamation marks."
             ),
             'agent_6': MockAgent(
                 name="Mira the Healer",
@@ -108,7 +114,8 @@ class MockWorldState:
                 quirk="Cries healing tears",
                 ability="Can cure any ailment",
                 goal="Heal the world's suffering",
-                backstory="Born from a healing crystal, Mira has dedicated her life to helping others."
+                backstory="Born from a healing crystal, Mira has dedicated her life to helping others.",
+                speech_style="Speaks with gentle compassion and healing wisdom. Uses caring words like 'heal', 'help', 'comfort'. Soft, patient tone with lots of encouragement."
             )
         }
 

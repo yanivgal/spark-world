@@ -15,7 +15,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 # Import UI components
 from ui.components.header import create_game_header
-from ui.pages.setup_page import render_setup_page
+from ui.pages.setup_page import render_setup_page, render_starting_page
 from ui.pages.game_page import render_game_page
 from ui.utils.session_state import initialize_session_state
 
@@ -35,6 +35,10 @@ def main():
         render_setup_page()
     elif st.session_state.game_state == "initializing":
         render_setup_page()
+    elif st.session_state.game_state == "ready":
+        render_setup_page()
+    elif st.session_state.game_state == "starting":
+        render_starting_page()
     elif st.session_state.game_state in ["playing", "paused", "completed"]:
         render_game_page()
 

@@ -17,27 +17,98 @@ def create_story_header():
         return False
     
     # Display current tick and controls
-    col1, col2 = st.columns([2, 1])
+    col1, col2, col3, col4 = st.columns([2, 1, 1, 1])
     with col1:
         st.markdown(f"### ⏰ Tick {st.session_state.current_tick}")
-    with col2:
-        if st.button("⏭️ Next Tick", type="primary", use_container_width=True):
+    with col3:
+        if st.button("⏮️ Previous Tick", use_container_width=True):
+            if st.session_state.current_tick > 0:
+                st.session_state.current_tick -= 1
+                st.rerun()
+            else:
+                st.warning("🏁 Already at the beginning!")
+    with col4:
+        # Determine if next tick exists and set appropriate button text
+        current_tick = st.session_state.current_tick
+        next_tick = current_tick + 1
+        
+        if current_tick < st.session_state.num_ticks:
+            if tick_exists(next_tick):
+                button_text = "⏭️ Next Tick (Navigate)"
+            else:
+                button_text = "⏭️ Next Tick (Generate)"
+        else:
+            button_text = "⏭️ Next Tick"
+            
+        if st.button(button_text, type="primary", use_container_width=True):
             if st.session_state.current_tick < st.session_state.num_ticks:
-                with st.spinner("🔄 The storyteller is weaving your tale..."):
-                    result = run_single_tick()
-                    if result:
-                        st.success(f"✅ Tick {st.session_state.current_tick} completed!")
-                        st.rerun()
-                    else:
-                        st.error("❌ Error during tick")
+                # Check if next tick already exists
+                next_tick = st.session_state.current_tick + 1
+                if tick_exists(next_tick):
+                    # Just navigate to existing tick
+                    st.session_state.current_tick = next_tick
+                    st.rerun()
+                else:
+                    # Generate new tick
+                    with st.spinner("🔄 The storyteller is weaving your tale..."):
+                        result = run_single_tick()
+                        if result:
+                            st.success(f"✅ Tick {st.session_state.current_tick} completed!")
+                            st.rerun()
+                        else:
+                            st.error("❌ Error during tick")
             else:
                 st.warning("🏁 Simulation completed!")
+    
+    # Display progress right below navigation buttons
+    st.progress(min(st.session_state.current_tick / st.session_state.num_ticks, 1.0))
+    st.caption(f"Overall Progress: **{st.session_state.current_tick}** of {st.session_state.num_ticks} ticks")
     
     return True
 
 
+def tick_exists(tick):
+    """Check if a specific tick already exists in the simulation data or storyteller history."""
+    # Check simulation data (for actual ticks)
+    sim_exists = any(data['tick'] == tick for data in st.session_state.simulation_data)
+    
+    # Check storyteller history (for introduction and all ticks)
+    story_exists = any(entry['tick'] == tick for entry in st.session_state.storyteller_history)
+    
+    # Debug info (can be removed later)
+    if hasattr(st.session_state, 'debug_mode') and st.session_state.debug_mode:
+        st.write(f"Debug: Tick {tick} - Sim: {sim_exists}, Story: {story_exists}")
+    
+    return sim_exists or story_exists
+
+
+def get_world_state_for_tick(tick):
+    """Get world state data for a specific tick from simulation history."""
+    # Check simulation data for the tick
+    for tick_data in st.session_state.simulation_data:
+        if tick_data['tick'] == tick:
+            return {
+                'living_agents': tick_data.get('living_agents', 0),
+                'total_sparks': tick_data.get('total_sparks', 0),
+                'bob_sparks': tick_data.get('bob_sparks', 0),
+                'active_bonds': tick_data.get('active_bonds', 0)
+            }
+    
+    # If not found, return current world state
+    world_state = st.session_state.engine.world_state
+    return {
+        'living_agents': len([a for a in world_state.agents.values() if a.status.value == 'alive']),
+        'total_sparks': sum(a.sparks for a in world_state.agents.values() if a.status.value == 'alive'),
+        'bob_sparks': world_state.bob_sparks,
+        'active_bonds': len(world_state.bonds)
+    }
+
+
 def create_world_status_display(world_state):
     """Create world status display."""
+    # Get world state for the current tick being viewed
+    tick_data = get_world_state_for_tick(st.session_state.current_tick)
+    
     st.markdown(
         """
         <div style="
@@ -58,32 +129,79 @@ def create_world_status_display(world_state):
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        living_agents = len([a for a in world_state.agents.values() if a.status.value == 'alive'])
-        st.metric("🌟 Living Minds", living_agents, delta=None)
+        st.metric("🌟 Living Minds", tick_data['living_agents'], delta=None)
     
     with col2:
-        total_sparks = sum(a.sparks for a in world_state.agents.values() if a.status.value == 'alive')
-        st.metric("⚡ Total Sparks", total_sparks, delta=None)
+        st.metric("⚡ Total Sparks", tick_data['total_sparks'], delta=None)
     
     with col3:
-        st.metric("🎁 Bob's Sparks", world_state.bob_sparks, delta=None)
+        st.metric("🎁 Bob's Sparks", tick_data['bob_sparks'], delta=None)
     
     with col4:
-        st.metric("🔗 Active Bonds", len(world_state.bonds), delta=None)
+        st.metric("🔗 Active Bonds", tick_data['active_bonds'], delta=None)
     
     st.markdown("</div>", unsafe_allow_html=True)
 
 
-def create_story_progress():
-    """Create story progress display."""
-    st.markdown("### 📚 The Complete Story")
+def create_current_iteration_events():
+    """Create the list of events for the current iteration only."""
+    current_events = []
+    current_tick = st.session_state.current_tick
     
-    # Add helpful descriptions
-    st.markdown("*Scroll through the chronological story of your Spark-World adventure*")
-
-    # Add progress indicators
-    st.progress(min(st.session_state.current_tick / st.session_state.num_ticks, 1.0))
-    st.caption(f"Progress: {st.session_state.current_tick} of {st.session_state.num_ticks} ticks")
+    # Add current storyteller entry
+    for story_entry in st.session_state.storyteller_history:
+        if story_entry['tick'] == current_tick:
+            current_events.append({
+                'type': 'story',
+                'tick': story_entry['tick'],
+                'data': story_entry
+            })
+            break
+    
+    # Add current mission events
+    world_state = st.session_state.engine.world_state
+    if hasattr(world_state, 'missions') and world_state.missions:
+        for mission_id, mission in world_state.missions.items():
+            # Only show missions created in the current tick
+            if mission.created_tick == current_tick:
+                current_events.append({
+                    'type': 'mission',
+                    'tick': current_tick,
+                    'data': mission
+                })
+    
+    # Add current tick's simulation data
+    for tick_data in st.session_state.simulation_data:
+        if tick_data['tick'] == current_tick:
+            # Add Bob donations
+            if 'bob_responses' in tick_data and tick_data['bob_responses']:
+                for bob_response in tick_data['bob_responses']:
+                    current_events.append({
+                        'type': 'bob',
+                        'tick': current_tick,
+                        'data': bob_response
+                    })
+            
+            # Add agent decisions
+            if 'agent_decisions' in tick_data and tick_data['agent_decisions']:
+                for decision in tick_data['agent_decisions']:
+                    current_events.append({
+                        'type': 'agent_decision',
+                        'tick': current_tick,
+                        'data': decision
+                    })
+            
+            # Add bond formations
+            if 'bond_formations' in tick_data and tick_data['bond_formations']:
+                for formation in tick_data['bond_formations']:
+                    current_events.append({
+                        'type': 'bond_formation',
+                        'tick': current_tick,
+                        'data': formation
+                    })
+            break
+    
+    return current_events
 
 
 def create_story_events_list():
@@ -189,7 +307,6 @@ def display_story_entry(story_entry, world_state):
     
     # Display world status for this tick
     if tick_data:
-        display_tick_world_status(tick_data)
         display_agent_decisions(tick_data)
         display_action_consequences(tick_data)
         display_end_of_tick_summary(tick_data)
@@ -510,40 +627,50 @@ def display_bond_formation_event(formation):
 
 def create_story_analysis_tabs(world_state):
     """Create story analysis tabs."""
-    st.markdown("### 📊 Story Analysis")
-    tab1, tab2, tab3 = st.tabs(["🎯 Themes", "👥 Character Insights", "🎯 All Missions"])
+    st.markdown("### 📊 Current Iteration Analysis")
+    tab1, tab2, tab3 = st.tabs(["🎯 Current Themes", "👥 Current Insights", "🎯 Current Missions"])
     
     with tab1:
-        # Display themes across all ticks
-        all_themes = []
+        # Display themes from current tick only
+        current_themes = []
         for entry in st.session_state.storyteller_history:
-            all_themes.extend(entry['themes_explored'])
+            if entry['tick'] == st.session_state.current_tick:
+                current_themes.extend(entry['themes_explored'])
+                break
         
-        if all_themes:
-            theme_counts = {}
-            for theme in all_themes:
-                theme_counts[theme] = theme_counts.get(theme, 0) + 1
-            
-            st.markdown("#### 🎯 Recurring Themes")
-            for theme, count in sorted(theme_counts.items(), key=lambda x: x[1], reverse=True):
-                st.markdown(f"**{theme}** (appeared {count} times)")
+        if current_themes:
+            st.markdown("#### 🎯 Themes This Iteration")
+            for theme in current_themes:
+                st.markdown(f"**{theme}**")
+        else:
+            st.info("No themes identified in this iteration yet.")
     
     with tab2:
-        # Display character insights
-        all_insights = []
+        # Display character insights from current tick only
+        current_insights = []
         for entry in st.session_state.storyteller_history:
-            all_insights.extend(entry['character_insights'])
+            if entry['tick'] == st.session_state.current_tick:
+                current_insights.extend(entry['character_insights'])
+                break
         
-        if all_insights:
-            st.markdown("#### 👥 Character Development")
-            for insight in all_insights:
+        if current_insights:
+            st.markdown("#### 👥 Character Insights This Iteration")
+            for insight in current_insights:
                 st.markdown(f"*{insight}*")
+        else:
+            st.info("No character insights in this iteration yet.")
     
     with tab3:
-        # Display all missions
+        # Display missions created in current tick only
+        current_missions = []
         if hasattr(world_state, 'missions') and world_state.missions:
-            st.markdown("#### 🎯 All Missions")
             for mission_id, mission in world_state.missions.items():
+                if mission.created_tick == st.session_state.current_tick:
+                    current_missions.append(mission)
+        
+        if current_missions:
+            st.markdown("#### 🎯 Missions Created This Iteration")
+            for mission in current_missions:
                 status_emoji = "✅" if mission.is_complete else "🔄"
                 status_text = "COMPLETED" if mission.is_complete else "IN PROGRESS"
                 
@@ -573,7 +700,7 @@ def create_story_analysis_tabs(world_state):
                     unsafe_allow_html=True
                 )
         else:
-            st.info("No missions yet. Missions are created when agents form bonds.")
+            st.info("No missions created in this iteration yet.")
 
 
 def display_story_page():
@@ -587,19 +714,23 @@ def display_story_page():
     # Create world status display
     create_world_status_display(world_state)
     
-    # Display the complete story flow with missions integrated
+    # Display the current iteration events only
     if st.session_state.storyteller_history:
-        create_story_progress()
+        # Get current iteration events only
+        current_events = create_current_iteration_events()
         
-        # Create and display story events
-        all_events = create_story_events_list()
-        
-        # Display the complete story flow
-        for event in all_events:
-            display_story_event(event, world_state)
+        if current_events:
+            st.markdown("### 📊 What Happened This Iteration")
+            st.markdown("*Events, decisions, and consequences from this tick*")
+            
+            # Display the current iteration events
+            for event in current_events:
+                display_story_event(event, world_state)
+        else:
+            st.info("📚 No events for the current iteration yet. Run a tick to see what happens!")
         
         # Create story analysis tabs
-        create_story_analysis_tabs(world_state) 
+        create_story_analysis_tabs(world_state)
 
 
 def display_storyteller_only_page():
@@ -626,19 +757,52 @@ def display_storyteller_only_page():
         return
     
     # Display current tick and controls
-    col1, col2 = st.columns([2, 1])
+    current_tick = st.session_state.current_tick
+    max_tick = max([data['tick'] for data in st.session_state.simulation_data]) if st.session_state.simulation_data else 0
+    is_current_tick = current_tick == max_tick
+    
+    col1, col2, col3 = st.columns([2, 1, 1])
     with col1:
-        st.markdown(f"### ⏰ Tick {st.session_state.current_tick}")
+        if is_current_tick:
+            st.markdown(f"### ⏰ Tick {current_tick}")
+        else:
+            st.markdown(f"### ⏰ Tick {current_tick} (Historical)")
+            st.info(f"🔍 Viewing tick {current_tick}. Current tick is {max_tick}.")
     with col2:
-        if st.button("⏭️ Next Tick", type="primary", use_container_width=True):
-            if st.session_state.current_tick < st.session_state.num_ticks:
-                with st.spinner("🔄 The storyteller is weaving your tale..."):
-                    result = run_single_tick()
-                    if result:
-                        st.success(f"✅ Tick {st.session_state.current_tick} completed!")
-                        st.rerun()
-                    else:
-                        st.error("❌ Error during tick")
+        if st.button("⏮️ Previous Tick", use_container_width=True):
+            if current_tick > 0:
+                st.session_state.current_tick -= 1
+                st.rerun()
+            else:
+                st.warning("🏁 Already at the beginning!")
+    with col3:
+        # Determine if next tick exists and set appropriate button text
+        next_tick = current_tick + 1
+        if current_tick < st.session_state.num_ticks:
+            if tick_exists(next_tick):
+                button_text = "⏭️ Next Tick (Navigate)"
+            else:
+                button_text = "⏭️ Next Tick (Generate)"
+        else:
+            button_text = "⏭️ Next Tick"
+            
+        if st.button(button_text, type="primary", use_container_width=True):
+            if current_tick < st.session_state.num_ticks:
+                # Check if next tick already exists
+                next_tick = current_tick + 1
+                if tick_exists(next_tick):
+                    # Just navigate to existing tick
+                    st.session_state.current_tick = next_tick
+                    st.rerun()
+                else:
+                    # Generate new tick
+                    with st.spinner("🔄 The storyteller is weaving your tale..."):
+                        result = run_single_tick()
+                        if result:
+                            st.success(f"✅ Tick {st.session_state.current_tick} completed!")
+                            st.rerun()
+                        else:
+                            st.error("❌ Error during tick")
             else:
                 st.warning("🏁 Simulation completed!")
     
@@ -648,48 +812,27 @@ def display_storyteller_only_page():
     
     # Display all storyteller iterations as cards
     if st.session_state.storyteller_history:
-        # Separate introduction (tick 0) from regular story iterations
-        introduction_entry = None
-        story_iterations = []
+        # Display all story iterations
+        st.markdown("### 📖 The Tale Unfolds")
+        st.markdown("*Chapter by chapter, the story continues...*")
         
-        for story_entry in st.session_state.storyteller_history:
-            if story_entry['tick'] == 0:
-                introduction_entry = story_entry
-            else:
-                story_iterations.append(story_entry)
-        
-        # Display the introduction as a special prologue
-        if introduction_entry:
-            st.markdown("### 📚 Prologue")
-            st.markdown("*The storyteller sets the stage for our adventure...*")
-            
-            # Get storyteller info for styling
-            storyteller_color = "#f093fb"  # Default color
-            if hasattr(st.session_state, 'selected_storyteller') and st.session_state.selected_storyteller:
-                storytellers = {
-                    "blip": {"color": "#FF6B6B"},
-                    "eloa": {"color": "#4ECDC4"},
-                    "krunch": {"color": "#45B7D1"}
-                }
-                storyteller_color = storytellers[st.session_state.selected_storyteller]["color"]
-            
-            # Special prologue card with different styling
+        for i, story_entry in enumerate(st.session_state.storyteller_history):
+            # Create a beautiful card for each storyteller iteration
             st.markdown(
                 f"""
                 <div style="
-                    background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
-                    padding: 30px;
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    padding: 25px;
                     border-radius: 15px;
-                    margin-bottom: 30px;
+                    margin-bottom: 25px;
                     color: white;
-                    box-shadow: 0 10px 30px rgba(44, 62, 80, 0.4);
-                    border-left: 5px solid {storyteller_color};
+                    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+                    border-left: 5px solid #f093fb;
                 ">
-                    <div style="display: flex; align-items: center; margin-bottom: 20px;">
-                        <span style="font-size: 2rem; margin-right: 15px;">📖</span>
-                        <h2 style="margin: 0; color: white; font-size: 1.5rem;">{introduction_entry['chapter_title']}</h2>
+                    <div style="display: flex; align-items: center; margin-bottom: 15px;">
+                        <span style="font-size: 1.5rem; margin-right: 10px;">📚</span>
+                        <h3 style="margin: 0; color: white;">Tick {story_entry['tick']}: {story_entry['chapter_title']}</h3>
                     </div>
-                </div>
                 """,
                 unsafe_allow_html=True
             )
@@ -699,83 +842,35 @@ def display_storyteller_only_page():
                 f"""
                 <div style="
                     background: rgba(255, 255, 255, 0.1);
-                    padding: 20px;
-                    border-radius: 12px;
-                    margin-bottom: 20px;
-                    border-left: 4px solid {storyteller_color};
+                    padding: 15px;
+                    border-radius: 10px;
+                    margin-bottom: 15px;
+                    border-left: 3px solid #f093fb;
                 ">
                 """,
                 unsafe_allow_html=True
             )
             
-            # Use st.write for the narrative text to avoid HTML rendering issues
-            st.markdown(f'<div class="story-text">{introduction_entry["narrative_text"]}</div>', unsafe_allow_html=True)
+            # Use st.markdown for the narrative text to avoid HTML rendering issues
+            st.markdown(f'<div class="story-text">{story_entry["narrative_text"]}</div>', unsafe_allow_html=True)
             
             st.markdown("</div>", unsafe_allow_html=True)
             
-            st.markdown("---")
-        
-        # Display regular story iterations
-        if story_iterations:
-            st.markdown("### 📖 The Tale Unfolds")
-            st.markdown("*Chapter by chapter, the story continues...*")
+            # Close the main card
+            st.markdown("</div>", unsafe_allow_html=True)
             
-            for i, story_entry in enumerate(story_iterations):
-                # Create a beautiful card for each storyteller iteration
+            # Add a subtle separator between iterations
+            if i < len(st.session_state.storyteller_history) - 1:
                 st.markdown(
-                    f"""
+                    """
                     <div style="
-                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                        padding: 25px;
-                        border-radius: 15px;
-                        margin-bottom: 25px;
-                        color: white;
-                        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
-                        border-left: 5px solid #f093fb;
-                    ">
-                        <div style="display: flex; align-items: center; margin-bottom: 15px;">
-                            <span style="font-size: 1.5rem; margin-right: 10px;">📚</span>
-                            <h3 style="margin: 0; color: white;">Tick {story_entry['tick']}: {story_entry['chapter_title']}</h3>
-                        </div>
-                    </div>
+                        height: 2px;
+                        background: linear-gradient(90deg, transparent, #667eea, transparent);
+                        margin: 20px 0;
+                        border-radius: 1px;
+                    "></div>
                     """,
                     unsafe_allow_html=True
                 )
-                
-                # Display the narrative text separately using st.write to avoid HTML rendering issues
-                st.markdown(
-                    f"""
-                    <div style="
-                        background: rgba(255, 255, 255, 0.1);
-                        padding: 15px;
-                        border-radius: 10px;
-                        margin-bottom: 15px;
-                        border-left: 3px solid #f093fb;
-                    ">
-                    """,
-                    unsafe_allow_html=True
-                )
-                
-                # Use st.markdown for the narrative text to avoid HTML rendering issues
-                st.markdown(f'<div class="story-text">{story_entry["narrative_text"]}</div>', unsafe_allow_html=True)
-                
-                st.markdown("</div>", unsafe_allow_html=True)
-                
-                # Close the main card
-                st.markdown("</div>", unsafe_allow_html=True)
-                
-                # Add a subtle separator between iterations
-                if i < len(story_iterations) - 1:
-                    st.markdown(
-                        """
-                        <div style="
-                            height: 2px;
-                            background: linear-gradient(90deg, transparent, #667eea, transparent);
-                            margin: 20px 0;
-                            border-radius: 1px;
-                        "></div>
-                        """,
-                        unsafe_allow_html=True
-                    )
     else:
         st.info("📚 No storyteller iterations yet. Run some ticks to see the story unfold!") 

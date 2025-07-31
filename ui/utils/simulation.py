@@ -25,8 +25,10 @@ def run_single_tick():
             storyteller_output = world_state.storyteller_output
         
         # Capture detailed tick information like the human logger does
+        # Use the world engine's tick number (which was just incremented)
+        target_tick = world_state.tick
         tick_details = {
-            'tick': st.session_state.current_tick + 1,
+            'tick': target_tick,  # Store the world engine's tick number
             'timestamp': datetime.now(),
             'living_agents': len([a for a in world_state.agents.values() if a.status.value == 'alive']),
             'total_sparks': sum(a.sparks for a in world_state.agents.values() if a.status.value == 'alive'),
@@ -143,7 +145,7 @@ def run_single_tick():
         # Store storyteller history
         if storyteller_output:
             story_entry = {
-                'tick': st.session_state.current_tick + 1,
+                'tick': target_tick,  # Store the world engine's tick number
                 'chapter_title': getattr(storyteller_output, 'chapter_title', 'Unknown Chapter'),
                 'narrative_text': getattr(storyteller_output, 'narrative_text', 'No narrative available'),
                 'themes_explored': getattr(storyteller_output, 'themes_explored', []),
@@ -210,7 +212,7 @@ def initialize_simulation():
         from world.human_logger import HumanLogger
         logger = HumanLogger()
         
-        # Step 5: Complete
+        # Step 5: Complete initialization (without running first tick)
         status_text.text("✨ Your Spark-World is ready!")
         progress_bar.progress(100)
         time.sleep(1)
@@ -218,19 +220,10 @@ def initialize_simulation():
         st.session_state.engine = engine
         st.session_state.logger = logger
         st.session_state.simulation_id = simulation_id
+        st.session_state.current_tick = 1  # Start at 1, ready for first tick
+        st.session_state.game_state = "ready"  # New state: ready to start
         
-        # Run the first tick to generate initial storyteller output
-        status_text.text("📖 Running the first tick...")
-        st.session_state.current_tick = 0  # Start at 0, will become 1 after the tick
-        result = run_single_tick()
-        if result:
-            st.session_state.current_tick = 1  # Now it's 1 after the first tick
-        else:
-            st.session_state.current_tick = 0  # Reset if there was an error
-        
-        st.session_state.game_state = "paused"
-        
-        st.success("🎉 Your Spark-World adventure begins!")
+        st.success("🎉 Your Spark-World is initialized and ready to begin!")
         st.rerun()
         
     except Exception as e:

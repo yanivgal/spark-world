@@ -211,7 +211,7 @@ class Storyteller:
             full_introduction = intro_output.complete_introduction
             
             return StorytellerOutput(
-                tick=0,  # Introduction is at tick 0
+                tick=1,  # Introduction is at tick 1
                 chapter_title="The Beginning",
                 narrative_text=full_introduction,  # Use the complete storyteller-generated introduction
                 character_insights=[],
@@ -227,7 +227,7 @@ class Storyteller:
             
             # Return a fallback narrative
             return StorytellerOutput(
-                tick=0,  # Introduction is at tick 0
+                tick=1,  # Introduction is at tick 1
                 chapter_title="The Beginning",
                 narrative_text="Welcome to Spark-World, where energy dances and life bursts in vibrant colors!",
                 character_insights=[],

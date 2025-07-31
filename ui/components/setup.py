@@ -81,12 +81,15 @@ def create_game_setup():
                 unsafe_allow_html=True
             )
             
-            # Create a simple button below each card
+            # Create a simple button below each card - disable if initializing
+            button_disabled = st.session_state.game_state == "initializing"
+            
             if st.button(
                 f"Choose {storyteller['name'].split(' - ')[1]}",
                 key=f"storyteller_{key}",
                 help=f"Click to choose {storyteller['name']}",
-                use_container_width=True
+                use_container_width=True,
+                disabled=button_disabled
             ):
                 selected_storyteller = key
     
@@ -176,11 +179,22 @@ def create_agent_setup():
         
         st.info(get_tick_description(num_ticks))
     
-    # Start button
-    if st.button("🚀 Begin Your Spark-World Adventure!", type="primary", use_container_width=True):
+    # Start button - disable if already initializing
+    button_disabled = st.session_state.game_state == "initializing"
+    
+    if st.button(
+        "🚀 Begin Your Spark-World Adventure!", 
+        type="primary", 
+        use_container_width=True,
+        disabled=button_disabled
+    ):
         st.session_state.num_agents = num_agents
         st.session_state.num_ticks = num_ticks
         st.session_state.game_state = "initializing"
         st.rerun()
+    
+    # Show status if initializing
+    if button_disabled:
+        st.info("🔄 Initializing your Spark-World... Please wait.")
     
     return num_agents, num_ticks 

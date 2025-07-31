@@ -12,8 +12,8 @@ def create_navigation():
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        if st.button("📖 Story", use_container_width=True):
-            st.session_state.current_page = "story"
+        if st.button("📖 Overview", use_container_width=True):
+            st.session_state.current_page = "overview"
             st.rerun()
     
     with col2:

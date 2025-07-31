@@ -19,7 +19,7 @@ def render_game_page():
     create_navigation()
     
     # Display current page
-    if st.session_state.current_page == "story":
+    if st.session_state.current_page == "overview":
         display_story_page()
     elif st.session_state.current_page == "agents":
         display_agents_page()

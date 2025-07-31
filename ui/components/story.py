@@ -9,7 +9,7 @@ from ui.utils.simulation import run_single_tick
 
 
 def create_story_header():
-    """Create the story page header with current tick and controls."""
+    """Create the overview page header with current tick and controls."""
     st.markdown("## 📖 The Story Unfolds...")
     
     if not st.session_state.engine:
@@ -577,7 +577,7 @@ def create_story_analysis_tabs(world_state):
 
 
 def display_story_page():
-    """Display the main story page with storyteller narrative."""
+    """Display the main overview page with storyteller narrative."""
     # Create story header
     if not create_story_header():
         return

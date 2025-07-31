@@ -11,7 +11,7 @@ from dataclasses import dataclass, asdict
 from datetime import datetime
 import uuid
 
-from character_designer.dspy_init import get_dspy
+from ai_client import get_dspy
 from world.state import WorldState, Agent, Bond, Mission, AgentStatus, BondStatus
 from world.simulation_mechanics import RaidResult, SparkTransaction, BobResponse
 from world.mission_system import MissionSystem
@@ -20,7 +20,7 @@ from agents.agent_decision import AgentDecisionModule
 from storytelling.storyteller import Storyteller
 from storytelling.storyteller_structures import StorytellerInput
 from agents.bob_decision import BobDecisionModule
-from character_designer.simple_diverse_sower import SimpleDiverseSower
+from shard_sower import ShardSower
 from communication.messages.action_message import ActionMessage
 from communication.messages.observation_packet import ObservationPacket, AgentState, Event, WorldNews, MissionStatus
 from communication.messages.mission_meeting_message import MissionMeetingMessage
@@ -65,7 +65,7 @@ class WorldEngine:
         # DSPy modules
         self.agent_decision_module = AgentDecisionModule()
         self.bob_decision_module = BobDecisionModule()
-        self.shard_sower_module = SimpleDiverseSower()
+        self.shard_sower_module = ShardSower()
         self.mission_system = MissionSystem()
         self.mission_meeting_coordinator = MissionMeetingCoordinator()
         self.storyteller = Storyteller(personality="blip")  # Default personality

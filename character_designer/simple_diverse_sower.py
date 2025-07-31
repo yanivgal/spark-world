@@ -6,6 +6,7 @@ from typing import List
 from world.state import Agent
 from communication.messages.observation_packet import AgentStatus, BondStatus
 from character_designer.dspy_init import get_dspy
+from character_designer.character_seed import CharacterSeed
 
 class SimpleDiverseSignature(dspy.Signature):
     """
@@ -74,8 +75,8 @@ class SimpleDiverseSower:
             available = personalities
         return random.choice(available)
     
-    def create_agent(self) -> Agent:
-        """Create a character with forced diversity but wild creativity for species."""
+    def create_character_seed(self) -> CharacterSeed:
+        """Create a character seed with forced diversity but wild creativity for species."""
         # Get forced variety for names and personalities
         culture = self._get_next_culture()
         personality_base = self._get_next_personality()
@@ -97,22 +98,40 @@ class SimpleDiverseSower:
         self.used_personalities.add(personality_base)
         self.used_realms.add(result.realm)
         
-        # Create agent using the LLM-generated ability
-        agent = Agent(
-            agent_id="",
+        # Create character seed
+        character_seed = CharacterSeed(
             name=result.name,
             species=result.species,
+            home_realm=result.realm,
             personality=result.personality,
             quirk=result.quirk,
-            ability=result.ability,  # Use the LLM-generated ability
+            ability=result.ability,
+            backstory=result.backstory,
+            opening_goal=result.goal
+        )
+        
+        return character_seed
+    
+    def create_agent(self) -> Agent:
+        """Create an agent from a character seed."""
+        character_seed = self.create_character_seed()
+        
+        # Create agent from the character seed
+        agent = Agent(
+            agent_id="",
+            name=character_seed.name,
+            species=character_seed.species,
+            personality=character_seed.personality,
+            quirk=character_seed.quirk,
+            ability=character_seed.ability,
             age=0,
             sparks=5,
             status=AgentStatus.ALIVE,
             bond_status=BondStatus.UNBONDED,
             bond_members=[],
-            home_realm=result.realm,
-            backstory=result.backstory,
-            opening_goal=result.goal
+            home_realm=character_seed.home_realm,
+            backstory=character_seed.backstory,
+            opening_goal=character_seed.opening_goal
         )
         
         return agent

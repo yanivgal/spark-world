@@ -11,7 +11,7 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Initialize DSPy first
-from character_designer.dspy_init import get_dspy
+from ai_client import get_dspy
 get_dspy()  # This will configure DSPy with the LLM
 
 from agents.bob_decision import BobDecisionModule

@@ -19,7 +19,7 @@ from world.world_engine import TickResult
 from communication.messages.action_message import ActionMessage
 from communication.messages.mission_meeting_message import MissionMeetingMessage
 from storytelling.storyteller_structures import StorytellerOutput
-from character_designer.dspy_init import get_dspy
+from ai_client import get_dspy
 
 class IntroductionSignature(dspy.Signature):
     """

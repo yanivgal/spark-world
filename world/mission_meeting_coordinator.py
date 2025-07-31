@@ -2,7 +2,7 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from character_designer.dspy_init import get_dspy
+from ai_client import get_dspy
 import dspy
 from dataclasses import dataclass
 from typing import List, Dict, Optional

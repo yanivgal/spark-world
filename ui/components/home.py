@@ -6,15 +6,18 @@ Home page with current tick navigation, world status, and current iteration even
 
 import streamlit as st
 from ui.utils.simulation import run_single_tick
+from ui.components.shared_story import (
+    create_story_card_header,
+    create_story_narrative,
+    create_story_tooltips,
+    create_story_card_footer
+)
+from ui.components.shared_observation import create_observation_section
+from ui.components.shared_mission_meeting import create_mission_meeting_section
 
 
 def create_home_header():
     """Create the home page header with current tick and controls."""
-    st.markdown("## 📖 The Story Unfolds...")
-    
-    if not st.session_state.engine:
-        st.info("Please initialize the simulation first.")
-        return False
     
     # Display current tick and controls
     col1, col2, col3, col4 = st.columns([2, 1, 1, 1])
@@ -227,64 +230,67 @@ def display_story_entry(story_entry, world_state):
             tick_data = data
             break
     
-    # Story chapter container
+    # Use shared components for consistent story display
+    create_story_card_header(story_entry)
+    create_story_narrative(story_entry)
+    create_story_tooltips(story_entry)
+    
+    # Add a subtle separator between story and observation packets
     st.markdown(
-        f"""
+        """
         <div style="
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 25px;
-            border-radius: 15px;
-            margin-bottom: 25px;
-            color: white;
-            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
-            border-left: 5px solid #f093fb;
-        ">
-            <div style="display: flex; align-items: center; margin-bottom: 15px;">
-                <span style="font-size: 1.5rem; margin-right: 10px;">📚</span>
-                <h3 style="margin: 0; color: white;">Tick {story_entry['tick']}: {story_entry['chapter_title']}</h3>
-            </div>
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #667eea, transparent);
+            margin: 20px 0;
+            border-radius: 1px;
+        "></div>
         """,
         unsafe_allow_html=True
     )
     
-    # Display the narrative text with the same styling as Story tab
-    st.markdown(
-        f"""
-        <div style="
-            background: rgba(255, 255, 255, 0.1);
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 15px;
-            border-left: 3px solid #f093fb;
-        ">
-        """,
-        unsafe_allow_html=True
-    )
+    # Display observation packets right above "What Happened This Iteration"
+    if tick_data and 'observation_packets' in tick_data and tick_data['observation_packets']:
+        create_observation_section(tick_data['observation_packets'])
     
-    # Use the same story-text CSS class for consistent styling
-    st.markdown(f'<div class="story-text">{story_entry["narrative_text"]}</div>', unsafe_allow_html=True)
+    # Add separator between observation packets and mission meetings
+    if tick_data and 'observation_packets' in tick_data and tick_data['observation_packets'] and tick_data.get('mission_meeting_messages'):
+        st.markdown(
+            """
+            <div style="
+                height: 2px;
+                background: linear-gradient(90deg, transparent, #667eea, transparent);
+                margin: 20px 0;
+                border-radius: 1px;
+            "></div>
+            """,
+            unsafe_allow_html=True
+        )
     
-    st.markdown("</div>", unsafe_allow_html=True)
+    # Display mission meetings
+    if tick_data and 'mission_meeting_messages' in tick_data and tick_data['mission_meeting_messages']:
+        create_mission_meeting_section(tick_data['mission_meeting_messages'])
     
-    # Display themes if available
-    if story_entry['themes_explored']:
-        themes_text = " • ".join(story_entry['themes_explored'])
-        st.markdown(f"**🎯 Themes:** *{themes_text}*")
+    # Add separator between mission meetings and "What Happened This Iteration"
+    if tick_data and tick_data.get('mission_meeting_messages'):
+        st.markdown(
+            """
+            <div style="
+                height: 2px;
+                background: linear-gradient(90deg, transparent, #667eea, transparent);
+                margin: 20px 0;
+                border-radius: 1px;
+            "></div>
+            """,
+            unsafe_allow_html=True
+        )
     
-    # Display character insights if available
-    if story_entry['character_insights']:
-        st.markdown("**👥 Character Insights:**")
-        for insight in story_entry['character_insights']:
-            st.markdown(f"*{insight}*")
-    
-    # Display world status for this tick
+    # Display world status for this tick (home-specific)
     if tick_data:
         display_agent_decisions(tick_data)
         display_action_consequences(tick_data)
         display_end_of_tick_summary(tick_data)
     
-    # Close the main card
-    st.markdown("</div>", unsafe_allow_html=True)
+    create_story_card_footer()
 
 
 def display_tick_world_status(tick_data):
@@ -334,46 +340,99 @@ def display_agent_decisions(tick_data):
         st.markdown("### 🧠 Agent Decisions")
         
         for decision in tick_data['agent_decisions']:
-            st.markdown(
-                f"""
-                <div style="
-                    background: linear-gradient(135deg, #4ECDC4 0%, #44A08D 100%);
-                    padding: 15px;
-                    border-radius: 10px;
-                    margin-bottom: 10px;
-                    color: white;
-                    box-shadow: 0 2px 8px rgba(78, 205, 196, 0.3);
-                ">
-                    <div style="display: flex; align-items: center; margin-bottom: 8px;">
-                        <span style="font-size: 1.2rem; margin-right: 8px;">🤔</span>
-                        <strong style="font-size: 1rem;">{decision['agent_name']} decides to {decision['intent']}</strong>
-                    </div>
-                """,
-                unsafe_allow_html=True
-            )
+            # Define color gradients for different action types
+            action_colors = {
+                "bond": "linear-gradient(135deg, #E3BF00 0%, #E09000 100%)",      # Darker Gold/Orange
+                "raid": "linear-gradient(135deg, #FF6B6B 0%, #EE5A52 100%)",     # Red
+                "request_spark": "linear-gradient(135deg, #3498DB 0%, #2980B9 100%)",  # Blue
+                "spawn": "linear-gradient(135deg, #A8E6CF 0%, #7FCDCD 100%)",    # Mint
+                "message": "linear-gradient(135deg, #9B59B6 0%, #8E44AD 100%)",  # Purple
+                "reply": "linear-gradient(135deg, #3498DB 0%, #2980B9 100%)"     # Blue
+            }
             
+            # Get gradient for this action type, default to teal if not found
+            gradient = action_colors.get(decision['intent'], "linear-gradient(135deg, #4ECDC4 0%, #44A08D 100%)")
+            
+            # Get target name for display
+            target_name = ""
             if decision['target']:
-                # Clean target field - extract just the agent_id if it contains comments
                 clean_target = decision['target'].split('#')[0].split('because')[0].strip()
                 if clean_target in tick_data['agent_status']:
                     target_name = tick_data['agent_status'][clean_target]['name']
-                    st.markdown(f"**🎯 Target:** {target_name}")
             
-            if decision['content']:
-                if decision['intent'] == "message" and decision['target']:
-                    clean_target = decision['target'].split('#')[0].split('because')[0].strip()
-                    if clean_target in tick_data['agent_status']:
-                        target_name = tick_data['agent_status'][clean_target]['name']
-                        st.markdown(f"**💬 Message to {target_name}:** \"{decision['content']}\"")
-                    else:
-                        st.markdown(f"**💬 Message:** \"{decision['content']}\"")
+            # Set text colors based on action type
+            if decision['intent'] == 'bond':
+                text_color = "#2C2C2C"  # Very dark grey for bond cards
+                reasoning_color = "#666666"  # Lighter grey for reasoning
+            else:
+                text_color = "white"  # White for other action types
+                reasoning_color = "rgba(255,255,255,0.9)"  # White with opacity for reasoning
+
+            # Choose icon and header format based on action type
+            icon = "🧠"
+            header = f"{decision['agent_name']}"
+            if decision['intent'] == 'bond':
+                icon = "💌"
+                header = f"{decision['agent_name']} → {target_name}"
+            elif decision['intent'] == 'message':
+                icon = "💬"
+                if target_name:
+                    header = f"{decision['agent_name']} → {target_name}"
                 else:
-                    st.markdown(f"**💬 Message:** \"{decision['content']}\"")
+                    header = f"{decision['agent_name']}"
+            elif decision['intent'] == 'raid':
+                icon = "⚔️"
+                if target_name:
+                    header = f"{decision['agent_name']} → {target_name}"
+                else:
+                    header = f"{decision['agent_name']}"
+            elif decision['intent'] == 'request_spark':
+                icon = "⚡"
+                header = f"{decision['agent_name']}"
+            elif decision['intent'] == 'spawn':
+                icon = "🌟"
+                header = f"{decision['agent_name']}"
+            elif decision['intent'] == 'reply':
+                icon = "🔁"
+                if target_name:
+                    header = f"{decision['agent_name']} → {target_name}"
+                else:
+                    header = f"{decision['agent_name']}"
+
+            # Create minimal card with correct icon and header
+            card_content = f"""
+            <div style="
+                background: {gradient};
+                padding: 10px;
+                border-radius: 8px;
+                margin-bottom: 8px;
+                color: {text_color};
+                box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+                font-size: 0.9rem;
+            ">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                    <div style="display: flex; align-items: center;">
+                        <span style="font-size: 1.0rem; margin-right: 5px;">{icon}</span>
+                        <strong style="font-size: 0.9rem; color: {text_color};">{header}</strong>
+                    </div>
+                    <div style="font-size: 0.8rem; opacity: 0.9; color: {text_color};">{decision['intent'].title()}</div>
+                </div>
+            """
             
+            # Add message content (without "Message:" prefix)
+            if decision['content']:
+                card_content += f'<p style="font-style: italic; margin-bottom: 5px; font-size: 0.8rem; color: {text_color};">"{decision["content"]}"</p>'
+            
+            # Add reasoning
             if decision['reasoning']:
-                st.markdown(f"**💭 Reasoning:** {decision['reasoning']}")
+                if decision['intent'] == 'bond':
+                    card_content += f'<div style="font-style: italic; opacity: 0.9; font-size: 0.8rem; color: {reasoning_color};"><span style="font-weight: bold;">Reasoning:</span> {decision["reasoning"]}</div>'
+                else:
+                    card_content += f'<div style="font-style: italic; opacity: 0.9; font-size: 0.8rem; color: {reasoning_color};">💭 {decision["reasoning"]}</div>'
             
-            st.markdown("</div>", unsafe_allow_html=True)
+            card_content += "</div>"
+            
+            st.markdown(card_content, unsafe_allow_html=True)
 
 
 def display_action_consequences(tick_data):
@@ -696,9 +755,6 @@ def display_home_page():
         current_events = create_current_iteration_events()
         
         if current_events:
-            st.markdown("### 📊 What Happened This Iteration")
-            st.markdown("*Events, decisions, and consequences from this tick*")
-            
             # Display the current iteration events
             for event in current_events:
                 display_home_event(event, world_state)

@@ -104,97 +104,109 @@ def create_game_setup():
 
 def create_agent_setup():
     """Create the agent setup interface."""
-    st.markdown("## 🤖 Configure Your World")
-    
-    st.markdown(
-        """
-        <div style="
-            background: rgba(255, 255, 255, 0.1);
-            padding: 20px;
-            border-radius: 10px;
-            border-left: 5px solid #4ECDC4;
-            margin-bottom: 30px;
-        ">
-            <h3 style="color: #4ECDC4; margin-bottom: 15px;">🌟 Choose Your Adventure</h3>
-            <p style="color: #333; line-height: 1.6;">
-                Decide how many minds will inhabit your Spark-World and how long their story will unfold.
-            </p>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown("### 👥 Number of Agents")
-        num_agents = st.slider(
-            "How many minds will inhabit your world?",
-            min_value=1,
-            max_value=10,
-            value=3,
-            help="More agents = more complex interactions and stories"
+    try:
+        # Early return if we're initializing to prevent button from showing
+        if st.session_state.game_state == "initializing":
+            st.info("🔄 Initializing your Spark-World... Please wait.")
+            return None, None
+        
+        # Check if button was already clicked in this session
+        if 'button_clicked' not in st.session_state:
+            st.session_state.button_clicked = False
+        
+        if st.session_state.button_clicked:
+            st.info("🔄 Processing your request... Please wait.")
+            return None, None
+        
+        st.markdown("## 🤖 Configure Your World")
+        
+        st.markdown(
+            """
+            <div style="
+                background: rgba(255, 255, 255, 0.1);
+                padding: 20px;
+                border-radius: 10px;
+                border-left: 5px solid #4ECDC4;
+                margin-bottom: 30px;
+            ">
+                <h3 style="color: #4ECDC4; margin-bottom: 15px;">🌟 Choose Your Adventure</h3>
+                <p style="color: #333; line-height: 1.6;">
+                    Decide how many minds will inhabit your Spark-World and how long their story will unfold.
+                </p>
+            </div>
+            """,
+            unsafe_allow_html=True
         )
         
-        # Agent count description
-        agent_descriptions = {
-            1: "A solitary journey - one mind exploring the mysteries of Spark-World",
-            2: "A duo's tale - two minds that will either bond or conflict",
-            3: "A trio's adventure - the classic dynamic of three minds",
-            4: "A quartet's symphony - four minds creating complex harmonies",
-            5: "A quintet's dance - five minds in intricate patterns",
-            6: "A sextet's chorus - six minds in rich interaction",
-            7: "A septet's ensemble - seven minds in complex dynamics",
-            8: "An octet's orchestra - eight minds in full harmony",
-            9: "A nonet's symphony - nine minds in grand scale",
-            10: "A decet's epic - ten minds in maximum complexity"
-        }
+        col1, col2 = st.columns(2)
         
-        st.info(agent_descriptions[num_agents])
-    
-    with col2:
-        st.markdown("### ⏰ Simulation Duration")
-        num_ticks = st.slider(
-            "How many ticks will your story unfold?",
-            min_value=5,
-            max_value=50,
-            value=10,
-            help="More ticks = longer story, more time for relationships to develop"
-        )
+        with col1:
+            st.markdown("### 👥 Number of Agents")
+            num_agents = st.slider(
+                "How many minds will inhabit your world?",
+                min_value=1,
+                max_value=10,
+                value=3,
+                help="More agents = more complex interactions and stories"
+            )
+            
+            # Agent count description
+            agent_descriptions = {
+                1: "A solitary journey - one mind exploring the mysteries of Spark-World",
+                2: "A duo's tale - two minds that will either bond or conflict",
+                3: "A trio's adventure - the classic dynamic of three minds",
+                4: "A quartet's symphony - four minds creating complex harmonies",
+                5: "A quintet's dance - five minds in intricate patterns",
+                6: "A sextet's chorus - six minds in rich interaction",
+                7: "A septet's ensemble - seven minds in complex dynamics",
+                8: "An octet's orchestra - eight minds in full harmony",
+                9: "A nonet's symphony - nine minds in grand scale",
+                10: "A decet's epic - ten minds in maximum complexity"
+            }
+            
+            st.info(agent_descriptions[num_agents])
         
-        # Generate tick description based on ranges
-        def get_tick_description(ticks):
-            if ticks <= 8:
-                return "A brief encounter - quick, intense interactions"
-            elif ticks <= 15:
-                return "A short tale - enough time for bonds to form"
-            elif ticks <= 25:
-                return "A moderate story - balanced development and resolution"
-            elif ticks <= 35:
-                return "A longer narrative - time for complex relationships"
-            elif ticks <= 45:
-                return "A lengthy saga - epic proportions"
-            else:
-                return "A legendary tale - the ultimate Spark-World experience"
+        with col2:
+            st.markdown("### ⏰ Simulation Duration")
+            num_ticks = st.slider(
+                "How many ticks will your story unfold?",
+                min_value=5,
+                max_value=50,
+                value=10,
+                help="More ticks = longer story, more time for relationships to develop"
+            )
+            
+            # Generate tick description based on ranges
+            def get_tick_description(ticks):
+                if ticks <= 8:
+                    return "A brief encounter - quick, intense interactions"
+                elif ticks <= 15:
+                    return "A short tale - enough time for bonds to form"
+                elif ticks <= 25:
+                    return "A moderate story - balanced development and resolution"
+                elif ticks <= 35:
+                    return "A longer narrative - time for complex relationships"
+                elif ticks <= 45:
+                    return "A lengthy saga - epic proportions"
+                else:
+                    return "A legendary tale - the ultimate Spark-World experience"
+            
+            st.info(get_tick_description(num_ticks))
         
-        st.info(get_tick_description(num_ticks))
-    
-    # Start button - disable if already initializing
-    button_disabled = st.session_state.game_state == "initializing"
-    
-    if st.button(
-        "🚀 Begin Your Spark-World Adventure!", 
-        type="primary", 
-        use_container_width=True,
-        disabled=button_disabled
-    ):
-        st.session_state.num_agents = num_agents
-        st.session_state.num_ticks = num_ticks
-        st.session_state.game_state = "initializing"
-        st.rerun()
-    
-    # Show status if initializing
-    if button_disabled:
-        st.info("🔄 Initializing your Spark-World... Please wait.")
-    
-    return num_agents, num_ticks 
+        # Show the button only if not clicked yet
+        if st.button(
+            "🚀 Begin Your Spark-World Adventure!", 
+            type="primary", 
+            use_container_width=True,
+            key=f"adventure_button_{st.session_state.game_state}"
+        ):
+            st.session_state.num_agents = num_agents
+            st.session_state.num_ticks = num_ticks
+            st.session_state.game_state = "initializing"
+            st.session_state.button_clicked = True  # Mark as clicked
+            st.rerun()
+        
+        return num_agents, num_ticks
+    except Exception as e:
+        st.error(f"❌ Error in setup: {e}")
+        return None, None 

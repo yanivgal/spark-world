@@ -12,7 +12,6 @@ from ui.utils.simulation import initialize_simulation
 def render_starting_page():
     """Render the starting page to execute the first tick."""
     st.markdown("## 🚀 Starting Your Adventure...")
-    st.markdown("*The storyteller is beginning your tale...*")
     
     # Show progress
     with st.spinner("🔄 The storyteller is weaving your tale..."):
@@ -37,7 +36,21 @@ def render_starting_page():
 def render_ready_page():
     """Render the ready page when world is initialized but no ticks have been run."""
     st.markdown("## 🎮 Your Spark-World is Ready!")
-    st.markdown("*The stage is set, the characters are waiting, and the storyteller is ready to begin your adventure.*")
+    
+    # Add captivating description of Spark-World
+    st.markdown("""
+    ### 🌌 Welcome to Spark-World
+    
+    Imagine a world where **life itself is energy**—a single pulse called a **Spark** that keeps every mind alive. 
+    In this living sandbox, autonomous agents bond together to survive, raid each other for precious energy, 
+    and beg the mysterious wanderer **Bob** for mercy when desperate.
+    
+    Your agents are unique characters with their own personalities, backstories, and goals. They'll form alliances, 
+    betray each other, and write their own legend through every decision they make. The **Storyteller** will weave 
+    their actions into compelling narrative, turning raw events into epic tales of survival and drama.
+    
+    *The stage is set, the characters are waiting, and the storyteller is ready to begin your adventure.*
+    """)
     
     # Display world info
     world_state = st.session_state.engine.world_state
@@ -74,11 +87,34 @@ def render_ready_page():
 
 def render_setup_page():
     """Render the setup page based on current game state."""
-    if st.session_state.game_state == "setup":
-        create_game_setup()
-    elif st.session_state.game_state == "setup_agents":
-        create_agent_setup()
-    elif st.session_state.game_state == "initializing":
-        initialize_simulation()
-    elif st.session_state.game_state == "ready":
-        render_ready_page() 
+    # CRITICAL DEBUG: Check if we're in a rerun cycle
+    if 'last_game_state' not in st.session_state:
+        st.session_state.last_game_state = None
+    
+    # Prevent multiple calls in the same render cycle
+    if 'render_cycle' not in st.session_state:
+        st.session_state.render_cycle = 0
+    
+    # Check if we're already in the middle of rendering this state
+    current_render_key = f"{st.session_state.game_state}_{st.session_state.render_cycle}"
+    if 'current_render' in st.session_state and st.session_state.current_render == current_render_key:
+        return
+    
+    st.session_state.current_render = current_render_key
+    st.session_state.render_cycle += 1
+    
+    # Use a key based on game_state to force complete re-render
+    container_key = f"setup_container_{st.session_state.game_state}"
+    
+    with st.container(key=container_key):
+        if st.session_state.game_state == "setup":
+            create_game_setup()
+        elif st.session_state.game_state == "setup_agents":
+            create_agent_setup()
+        elif st.session_state.game_state == "initializing":
+            initialize_simulation()
+        elif st.session_state.game_state == "ready":
+            render_ready_page()
+    
+    # Update the last game state
+    st.session_state.last_game_state = st.session_state.game_state 

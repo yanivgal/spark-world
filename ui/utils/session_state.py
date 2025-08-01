@@ -30,6 +30,8 @@ def initialize_session_state():
         st.session_state.current_page = "home"
     if 'is_processing' not in st.session_state:
         st.session_state.is_processing = False
+    if 'dspy_initialized' not in st.session_state:
+        st.session_state.dspy_initialized = False
 
 
 def get_game_state() -> str:

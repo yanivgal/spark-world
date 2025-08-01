@@ -49,7 +49,8 @@ def run_single_tick():
             'bond_dissolutions': [],
             'spark_changes': {},
             'raid_attempts': [],
-            'bob_donations': []
+            'bob_donations': [],
+            'observation_packets': {}  # Store observation packets for UI display
         }
         
         # Capture agent status and spark changes
@@ -139,6 +140,127 @@ def run_single_tick():
             for donation in world_state.bob_donations:
                 tick_details['bob_donations'].append(donation)
         
+        # Capture observation packets for UI display
+        if hasattr(result, 'observation_packets') and result.observation_packets:
+            for agent_id, packet in result.observation_packets.items():
+                
+                # Convert ObservationPacket to LLM-friendly serializable format
+                tick_details['observation_packets'][agent_id] = {
+                    # Essential system info
+                    'current_tick': packet.tick,
+                    
+                    # Current agent state
+                    'agent_state': {
+                        'name': packet.self_state.name,
+                        'sparks': packet.self_state.sparks,
+                        'bond_status': packet.self_state.bond_status.value,
+                        'age': packet.self_state.age
+                    },
+                    
+                    # Immediate context - what needs attention right now
+                    'immediate_context': {
+                        'inbox': [
+                            {
+                                'sender_id': msg.agent_id if hasattr(msg, 'agent_id') else 'Unknown',
+                                'content': msg.content,
+                                'intent': msg.intent
+                            } for msg in packet.inbox
+                        ],
+                        'events_this_tick': [
+                            {
+                                'event_type': event.event_type,
+                                'description': event.description,
+                                'spark_change': event.spark_change,
+                                'source_agent': event.source_agent
+                            } for event in packet.events_since_last
+                        ]
+                    },
+                    
+                    # Recent context - what happened last tick
+                    'recent_context': {
+                        'actions_targeting_me_last_tick': [
+                            {
+                                'agent_id': action.agent_id,
+                                'content': action.content,
+                                'intent': action.intent,
+                                'tick': action.tick
+                            } for action in packet.previous_tick_actions_targeting_me
+                        ],
+                        'my_actions_last_tick': [
+                            {
+                                'intent': action.intent,
+                                'target': action.target,
+                                'content': action.content,
+                                'reasoning': action.reasoning,
+                                'tick': action.tick
+                            } for action in packet.previous_tick_my_actions
+                        ],
+                        'events_last_tick': [
+                            {
+                                'event_type': event.event_type,
+                                'description': event.description,
+                                'source_agent': event.source_agent,
+                                'spark_change': event.spark_change
+                            } for event in packet.previous_tick_events
+                        ]
+                    },
+                    
+                    # World context - general world information
+                    'world_context': {
+                        'bob_sparks': packet.world_news.bob_sparks,
+                        'agents_spawned_this_tick': packet.world_news.agents_spawned_this_tick,
+                        'agents_vanished_this_tick': packet.world_news.agents_vanished_this_tick,
+                        'bonds_formed_this_tick': packet.world_news.bonds_formed_this_tick
+                    },
+                    
+                    # Mission context - mission information for bonded agents
+                    'mission_context': {
+                        'mission_id': packet.mission_status.mission_id,
+                        'mission_title': packet.mission_status.mission_title,
+                        'mission_goal': packet.mission_status.mission_goal,
+                        'current_progress': packet.mission_status.current_progress,
+                        'mission_complete': packet.mission_status.mission_complete
+                    } if packet.mission_status else None,
+                    
+                    # Historical context - patterns and relationships over time
+                    'historical_context': {
+                        'my_action_history': [
+                            {
+                                'tick': action.tick,
+                                'intent': action.intent,
+                                'target': action.target,
+                                'content': action.content,
+                                'reasoning': action.reasoning
+                            } for action in packet.my_action_history
+                        ],
+                        'actions_targeting_me': [
+                            {
+                                'tick': action.tick,
+                                'agent_id': action.agent_id,
+                                'intent': action.intent,
+                                'content': action.content
+                            } for action in packet.actions_targeting_me
+                        ]
+                    }
+                }
+                
+        # Capture mission meeting messages for UI display
+        if hasattr(world_state, 'mission_meeting_messages') and world_state.mission_meeting_messages:
+            tick_details['mission_meeting_messages'] = [
+                {
+                    'sender_id': msg.sender_id,
+                    'message_type': msg.message_type,
+                    'content': msg.content,
+                    'reasoning': msg.reasoning,
+                    'tick': msg.tick,
+                    'mission_id': msg.mission_id,
+                    'target_agent_id': msg.target_agent_id,
+                    'task_description': msg.task_description
+                } for msg in world_state.mission_meeting_messages
+            ]
+        else:
+            tick_details['mission_meeting_messages'] = []
+        
         # Store tick data
         st.session_state.simulation_data.append(tick_details)
         
@@ -190,6 +312,19 @@ def initialize_simulation():
         time.sleep(0.5)
         
         from world.world_engine import WorldEngine
+        import threading
+        
+        # Ensure DSPy is initialized in the main thread
+        if not hasattr(st.session_state, 'dspy_initialized'):
+            try:
+                from ai_client import get_dspy
+                get_dspy()
+                st.session_state.dspy_initialized = True
+            except Exception as e:
+                st.error(f"❌ Error initializing DSPy: {e}")
+                st.session_state.game_state = "setup"
+                return
+        
         engine = WorldEngine(db_path=db_path)
         engine.reset_all_modules()
         engine.storyteller.personality = st.session_state.selected_storyteller
@@ -223,7 +358,8 @@ def initialize_simulation():
         st.session_state.current_tick = 1  # Start at 1, ready for first tick
         st.session_state.game_state = "ready"  # New state: ready to start
         
-        st.success("🎉 Your Spark-World is initialized and ready to begin!")
+        # Remove the success message - just show completion
+        st.success("🎉 Initialization complete!")
         st.rerun()
         
     except Exception as e:

@@ -95,6 +95,14 @@ class ObservationPacket:
         spark_cost_per_tick: How many sparks are lost per tick
         bond_spark_formula: Formula for bond spark generation
         raid_strength_formula: Formula for raid strength calculation
+        previous_tick_events: Events from previous tick that affected this agent
+        previous_tick_actions_targeting_me: Actions from previous tick targeting this agent
+        previous_tick_my_actions: Actions this agent took in previous tick
+        previous_tick_bond_requests: Bond requests received in previous tick
+        previous_tick_messages: Messages received in previous tick
+        previous_tick_raids: Raids involving this agent in previous tick
+        my_action_history: All actions this agent has taken (for reasoning)
+        actions_targeting_me: All actions where this agent was the target (for reasoning)
     """
     # System Information
     tick: int
@@ -106,7 +114,7 @@ class ObservationPacket:
     events_since_last: List[Event]
     
     # Direct Communications
-    inbox: List[ActionMessage]  # Messages from other agents
+    inbox: List[ActionMessage]  # Messages from other agents (from previous tick, same source as historical context)
     
     # World Context
     world_news: WorldNews
@@ -120,4 +128,35 @@ class ObservationPacket:
     # Game Rules Context
     spark_cost_per_tick: int = 1
     bond_spark_formula: str = "floor(n + (n-1) × 0.5)"
-    raid_strength_formula: str = "age + sparks" 
+    raid_strength_formula: str = "age + sparks"
+    
+    # Previous Tick Context (for immediate decision making)
+    previous_tick_events: List[Event] = None
+    previous_tick_actions_targeting_me: List[ActionMessage] = None
+    previous_tick_my_actions: List[ActionMessage] = None
+    previous_tick_bond_requests: List[ActionMessage] = None
+    previous_tick_messages: List[ActionMessage] = None
+    previous_tick_raids: List[ActionMessage] = None
+    
+    # Full History (for reasoning and context)
+    my_action_history: List[ActionMessage] = None
+    actions_targeting_me: List[ActionMessage] = None
+    
+    def __post_init__(self):
+        """Initialize default values for optional fields."""
+        if self.previous_tick_events is None:
+            self.previous_tick_events = []
+        if self.previous_tick_actions_targeting_me is None:
+            self.previous_tick_actions_targeting_me = []
+        if self.previous_tick_my_actions is None:
+            self.previous_tick_my_actions = []
+        if self.previous_tick_bond_requests is None:
+            self.previous_tick_bond_requests = []
+        if self.previous_tick_messages is None:
+            self.previous_tick_messages = []
+        if self.previous_tick_raids is None:
+            self.previous_tick_raids = []
+        if self.my_action_history is None:
+            self.my_action_history = []
+        if self.actions_targeting_me is None:
+            self.actions_targeting_me = [] 

@@ -1,4 +1,5 @@
 import dspy
+import json
 from dataclasses import dataclass
 from typing import List, Optional
 from communication.messages.observation_packet import ObservationPacket
@@ -71,6 +72,13 @@ class AgentDecisionSignature(dspy.Signature):
     - WARNING: If you ignore a bond request, it will disappear and you cannot bond with that agent later
     - WARNING: Bond requests expire after one tick - respond immediately or lose the opportunity
     
+    🎯 PREVIOUS TICK CONTEXT (CRITICAL FOR DECISION MAKING):
+    - Check previous_tick_context.bond_requests_received for bond requests you received last tick
+    - Check previous_tick_context.messages_received for messages you received last tick
+    - Check previous_tick_context.raids_involving_me for raids that happened to you last tick
+    - Check previous_tick_context.my_actions for actions you took last tick
+    - Use this context to understand what happened and make informed decisions
+    
     🎯 MISSION INTEGRATION (CRITICAL FOR BONDED AGENTS):
     - If you have a mission, it's your bond's primary purpose and should drive your decisions
     - Missions can be: collection, combat, survival, or growth objectives
@@ -98,7 +106,6 @@ class AgentDecisionSignature(dspy.Signature):
     BONDING RULES (CRITICAL):
     - If you are UNBONDED: You can send bond requests to other unbonded agents
     - If you are BONDED: Focus on working with your existing bond members instead of seeking new bonds
-    - Bonded agents should prioritize: spawn, message bond members, raid, or request_spark
     - Only seek new bonds if you have a very strong strategic reason
     - Your bond members are your primary allies - work with them first
     
@@ -302,8 +309,8 @@ SPEAK AND THINK LIKE YOUR CHARACTER:
         # Convert the entire observation packet to a structured string
         # The LLM will interpret this and create its own natural language context
         packet_dict = {
-            "tick": observation_packet.tick,
-            "self_state": {
+            "current_tick": observation_packet.tick,
+            "agent_state": {
                 "agent_id": observation_packet.self_state.agent_id,
                 "name": observation_packet.self_state.name,
                 "species": observation_packet.self_state.species,
@@ -314,28 +321,64 @@ SPEAK AND THINK LIKE YOUR CHARACTER:
                 "sparks": observation_packet.self_state.sparks,
                 "status": observation_packet.self_state.status.value,
                 "bond_status": observation_packet.self_state.bond_status.value,
-                "bond_members": observation_packet.self_state.bond_members
+                "bond_members": observation_packet.self_state.bond_members,
+                "home_realm": observation_packet.self_state.home_realm,
+                "backstory": observation_packet.self_state.backstory,
+                "opening_goal": observation_packet.self_state.opening_goal,
+                "speech_style": observation_packet.self_state.speech_style
             },
-            "events_since_last": [
-                {
-                    "event_type": event.event_type,
-                    "description": event.description,
-                    "spark_change": event.spark_change,
-                    "source_agent": event.source_agent,
-                    "additional_data": event.additional_data
-                }
-                for event in observation_packet.events_since_last
-            ],
-            "inbox": [
-                {
-                    "agent_id": msg.agent_id,
-                    "intent": msg.intent,
-                    "target": msg.target,
-                    "content": msg.content
-                }
-                for msg in observation_packet.inbox
-            ],
-            "world_news": {
+            
+            # Immediate context - what needs attention right now
+            "immediate_context": {
+                "inbox": [
+                    {
+                        "agent_id": msg.agent_id if hasattr(msg, 'agent_id') else 'Unknown',
+                        "content": msg.content,
+                        "intent": msg.intent,
+                        "tick": msg.tick
+                    } for msg in observation_packet.inbox
+                ],
+                "events_this_tick": [
+                    {
+                        "event_type": event.event_type,
+                        "description": event.description,
+                        "spark_change": event.spark_change,
+                        "source_agent": event.source_agent
+                    } for event in observation_packet.events_since_last
+                ]
+            },
+            
+            # Recent context - what happened last tick
+            "recent_context": {
+                "actions_targeting_me_last_tick": [
+                    {
+                        "agent_id": action.agent_id,
+                        "content": action.content,
+                        "intent": action.intent,
+                        "tick": action.tick
+                    } for action in observation_packet.previous_tick_actions_targeting_me
+                ],
+                "my_actions_last_tick": [
+                    {
+                        "intent": action.intent,
+                        "target": action.target,
+                        "content": action.content,
+                        "reasoning": action.reasoning,
+                        "tick": action.tick
+                    } for action in observation_packet.previous_tick_my_actions
+                ],
+                "events_last_tick": [
+                    {
+                        "event_type": event.event_type,
+                        "description": event.description,
+                        "source_agent": event.source_agent,
+                        "spark_change": event.spark_change
+                    } for event in observation_packet.previous_tick_events
+                ]
+            },
+            
+            # World context - general world information
+            "world_context": {
                 "tick": observation_packet.world_news.tick,
                 "total_agents": observation_packet.world_news.total_agents,
                 "total_bonds": observation_packet.world_news.total_bonds,
@@ -346,21 +389,33 @@ SPEAK AND THINK LIKE YOUR CHARACTER:
                 "public_agent_info": observation_packet.world_news.public_agent_info,
                 "bob_sparks": observation_packet.world_news.bob_sparks
             },
-            "mission_status": {
-                "mission_id": observation_packet.mission_status.mission_id,
-                "mission_title": observation_packet.mission_status.mission_title,
-                "mission_description": observation_packet.mission_status.mission_description,
-                "mission_goal": observation_packet.mission_status.mission_goal,
-                "current_progress": observation_packet.mission_status.current_progress,
-                "leader_id": observation_packet.mission_status.leader_id,
-                "assigned_tasks": observation_packet.mission_status.assigned_tasks,
-                "mission_complete": observation_packet.mission_status.mission_complete
-            } if observation_packet.mission_status else None,
+            
+            # Mission context - mission information for bonded agents
+            "mission_context": observation_packet.mission_status,
+            
+            # Available actions
             "available_actions": observation_packet.available_actions,
-            "spark_cost_per_tick": observation_packet.spark_cost_per_tick,
-            "bond_spark_formula": observation_packet.bond_spark_formula,
-            "raid_strength_formula": observation_packet.raid_strength_formula
+            
+            # Historical context - patterns and relationships over time
+            "historical_context": {
+                "my_action_history": [
+                    {
+                        "tick": action.tick,
+                        "intent": action.intent,
+                        "target": action.target,
+                        "content": action.content,
+                        "reasoning": action.reasoning
+                    } for action in observation_packet.my_action_history
+                ],
+                "actions_targeting_me": [
+                    {
+                        "tick": action.tick,
+                        "agent_id": action.agent_id,
+                        "intent": action.intent,
+                        "content": action.content
+                    } for action in observation_packet.actions_targeting_me
+                ]
+            }
         }
         
-        import json
         return json.dumps(packet_dict, indent=2) 

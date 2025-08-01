@@ -16,9 +16,11 @@ class ActionMessage:
         target: Target agent_id if the action is directed at someone, None otherwise
         content: The actual message content that other agents will see
         reasoning: The agent's internal thought process (for debugging and storytelling)
+        tick: The tick number when this action was created (for filtering in observation packets)
     """
     agent_id: str
     intent: str  # "bond", "raid", "request_spark", "spawn", "reply"
     target: Optional[str]  # target agent_id or None
     content: str  # the actual message content
-    reasoning: str  # what the agent was thinking when making this decision 
+    reasoning: str  # what the agent was thinking when making this decision
+    tick: int = 0  # the tick when this action was created 

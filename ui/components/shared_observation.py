@@ -163,28 +163,24 @@ def create_observation_card(observation_data) -> None:
         self_state = observation_data['agent_state']
         inbox = observation_data['immediate_context']['inbox']
         events_since_last = observation_data['immediate_context']['events_this_tick']
-        world_news = observation_data['world_context']
+        # Remove world_news from individual cards - it's now in the dedicated section
     else:
         # Handle ObservationPacket objects (unchanged)
         self_state = observation_data.self_state
         inbox = observation_data.inbox
         events_since_last = observation_data.events_since_last
-        world_news = observation_data.world_news
+        # Remove world_news from individual cards - it's now in the dedicated section
     
     # Format each section
     status_line = format_agent_status(self_state)
     messages_line = format_messages(inbox)
     events_line = format_events(events_since_last)
-    news_line = format_world_news(world_news)
+    # Remove news_line - world news is now in dedicated section
     
-    # Combine events and news
-    events_news_line = ""
-    if events_line and news_line:
-        events_news_line = f"{events_line} | {news_line}"
-    elif events_line:
-        events_news_line = events_line
-    elif news_line:
-        events_news_line = news_line
+    # Only show events if they exist
+    events_line_display = ""
+    if events_line:
+        events_line_display = f"📊 {events_line}"
     
     # Create compact card with proper HTML
     card_content = f"""
@@ -203,8 +199,8 @@ def create_observation_card(observation_data) -> None:
     if messages_line:
         card_content += f'<div style="margin-bottom: 4px;">{messages_line}</div>'
     
-    if events_news_line:
-        card_content += f'<div>📊 {events_news_line}</div>'
+    if events_line_display:
+        card_content += f'<div>{events_line_display}</div>'
     
     card_content += "</div>"
     
@@ -222,6 +218,58 @@ def create_observation_section(observation_packets: Dict[str, dict]) -> None:
     print("🔍 UI DEBUG: Observation packets:")
     pp.pprint(observation_packets)
     
+    # Create dedicated world news section first
+    create_world_news_section(observation_packets)
+    
     # Display observation cards for each agent
     for agent_id, packet_data in observation_packets.items():
-        create_observation_card(packet_data) 
+        create_observation_card(packet_data)
+
+
+def create_world_news_section(observation_packets: Dict[str, dict]) -> None:
+    """Create a dedicated world news section with all world events."""
+    # Extract world news from the first observation packet (they should all be the same)
+    if not observation_packets:
+        return
+    
+    # Get world context from first packet
+    first_packet = next(iter(observation_packets.values()))
+    if isinstance(first_packet, dict):
+        world_context = first_packet.get('world_context', {})
+    else:
+        world_context = first_packet.world_news
+    
+    # Extract world news data
+    if isinstance(world_context, dict):
+        bob_sparks = world_context.get('bob_sparks', 0)
+        agents_spawned = world_context.get('agents_spawned_this_tick', [])
+        agents_vanished = world_context.get('agents_vanished_this_tick', [])
+        bonds_formed = world_context.get('bonds_formed_this_tick', [])
+    else:
+        bob_sparks = getattr(world_context, 'bob_sparks', 0)
+        agents_spawned = getattr(world_context, 'agents_spawned_this_tick', [])
+        agents_vanished = getattr(world_context, 'agents_vanished_this_tick', [])
+        bonds_formed = getattr(world_context, 'bonds_formed_this_tick', [])
+    
+    # Only show world news section if there's actual data
+    has_world_news = (bob_sparks > 0 or agents_spawned or agents_vanished or bonds_formed)
+    
+    if has_world_news:
+        news_parts = []
+        
+        if bob_sparks > 0:
+            news_parts.append(f"📊 Bob:{bob_sparks}⚡")
+        
+        if agents_spawned:
+            news_parts.append(f"New:{len(agents_spawned)}")
+        
+        if agents_vanished:
+            news_parts.append(f"Gone:{len(agents_vanished)}")
+        
+        if bonds_formed:
+            news_parts.append(f"Bonds:+{len(bonds_formed)}")
+        
+        # Format as compact inline text
+        world_news_text = "  |  ".join(news_parts)
+        
+        st.markdown(f"**World News:** {world_news_text}") 

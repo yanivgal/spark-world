@@ -67,6 +67,13 @@ class WorldState:
         bob_sparks: Bob's current spark count
         bob_sparks_per_tick: How many sparks Bob gains per tick
         pending_actions: Actions waiting to be processed this tick
+        all_agent_actions: All actions taken by agents this tick
+        agent_actions_for_logging: Actions for logging (before processing)
+        pending_bond_requests: Bond requests waiting to be processed
+        bond_requests_for_display: Bond requests for display
+        pending_spark_requests: Spark requests waiting to be processed
+        message_queue: Messages waiting to be delivered to agents
+        mission_meeting_messages: Mission meeting messages for this tick
         message_queue: Messages waiting to be delivered to agents
         events_this_tick: Raw events for Storyteller processing
         agents_vanished_this_tick: Agents that vanished this tick
@@ -95,12 +102,17 @@ class WorldState:
     
     # Communication Queues
     pending_actions: List[ActionMessage] = field(default_factory=list)
+    all_agent_actions: List[ActionMessage] = field(default_factory=list)
     agent_actions_for_logging: List[ActionMessage] = field(default_factory=list)  # Actions for logging (before processing)
-    pending_bond_requests: Dict[str, ActionMessage] = field(default_factory=dict)  # target_id -> bond request
+    pending_bond_requests: Dict[str, List[ActionMessage]] = field(default_factory=dict)  # target_id -> list of bond requests
     bond_requests_for_display: Dict[str, ActionMessage] = field(default_factory=dict)  # target_id -> bond request (for display)
     pending_spark_requests: List[ActionMessage] = field(default_factory=list)  # request_spark actions for next tick
     message_queue: Dict[str, List[ActionMessage]] = field(default_factory=dict)  # agent_id -> messages
     mission_meeting_messages: List = field(default_factory=list)  # Mission meeting messages for this tick
+    # --- Added for tick delay ---
+    previous_tick_bond_requests: Dict[str, List[ActionMessage]] = field(default_factory=dict)  # For delayed inbox
+    previous_tick_message_queue: Dict[str, List[ActionMessage]] = field(default_factory=dict)  # For delayed inbox
+    # --- End added ---
     
     # Event Tracking
     events_this_tick: List[Dict] = field(default_factory=list)  # Raw events for Storyteller

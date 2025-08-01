@@ -45,6 +45,7 @@ class TickResult:
     total_sparks_lost: int
     total_raids_attempted: int
     agent_actions: List[ActionMessage]  # Actions taken by agents this tick
+    observation_packets: Dict[str, ObservationPacket]  # Observation packets for UI display
 
 
 class WorldEngine:
@@ -277,6 +278,14 @@ class WorldEngine:
         """
         # Load current state
         self.load_state(simulation_id)
+
+        # --- Store previous tick's bond requests and messages for delayed inbox ---
+        self.world_state.previous_tick_bond_requests = copy.deepcopy(self.world_state.pending_bond_requests)
+        self.world_state.previous_tick_message_queue = copy.deepcopy(self.world_state.message_queue)
+        # Clear current for this tick's processing
+        self.world_state.pending_bond_requests.clear()
+        self.world_state.message_queue.clear()
+        # --- End store previous tick ---
         
         # Capture world state BEFORE the tick begins
         world_state_before = self._capture_world_state_snapshot()
@@ -333,10 +342,7 @@ class WorldEngine:
         self.world_state.current_processing_stage = "agents_act"
         stage_results["agents_act"] = self._stage_3_agents_act()
         
-        # Process pending bond requests (two-step process)
-        self._process_pending_bond_requests()
-        
-        # Stage 4: Distribute Sparks
+        # Stage 4: Distribute Sparks (now handled in Stage 1)
         self.world_state.current_processing_stage = "distribute_sparks"
         stage_results["distribute_sparks"] = self._stage_4_distribute_sparks()
         
@@ -347,6 +353,9 @@ class WorldEngine:
         # Stage 6: Storytime (Storyteller)
         self.world_state.current_processing_stage = "storytime"
         stage_results["storytime"] = self._stage_6_storytime(world_state_before)
+        
+        # Generate observation packets for UI display
+        observation_packets = self._generate_observation_packets()
         
         # Save state
         self.save_state(simulation_id)
@@ -363,13 +372,14 @@ class WorldEngine:
             total_sparks_minted=self.sparks_minted_this_tick,  # Use this tick's amount, not cumulative
             total_sparks_lost=self.sparks_lost_this_tick,
             total_raids_attempted=self.raids_attempted_this_tick,
-            agent_actions=self.world_state.agent_actions_for_logging  # Use stored actions for logging
+            agent_actions=self.world_state.agent_actions_for_logging,  # Use stored actions for logging
+            observation_packets=observation_packets  # Add observation packets for UI
         )
         
         return result
     
     def _stage_1_mint_sparks(self) -> str:
-        """Stage 1: Apply upkeep costs and mint sparks from bonds."""
+        """Stage 1: Apply upkeep costs and mint/distribute sparks from bonds."""
         # Apply upkeep costs FIRST (before any other actions)
         vanished_count = 0
         total_upkeep = 0
@@ -399,15 +409,53 @@ class WorldEngine:
         # Store this tick's spark loss (for TickResult)
         self.sparks_lost_this_tick = total_upkeep
         
-        # Mint sparks from bonds
+        # Mint AND DISTRIBUTE sparks from existing bonds
         total_minted = 0
+        total_distributed = 0
+        
         for bond in self.world_state.bonds.values():
             # Each bond generates 1 spark per member per tick
             sparks_generated = len(bond.members)
             bond.sparks_generated_this_tick = sparks_generated
             total_minted += sparks_generated
             
-            # Log spark minting
+            # Track distribution details for Storyteller
+            distribution_details = []
+            bond_name = f"Bond {bond.bond_id}"
+            
+            # Distribute sparks randomly within the bond
+            bond_members = list(bond.members)
+            for _ in range(sparks_generated):
+                recipient_id = random.choice(bond_members)
+                recipient = self.world_state.agents[recipient_id]
+                recipient.sparks += 1
+                total_distributed += 1
+                
+                # Track individual distribution
+                distribution_details.append({
+                    "recipient_id": recipient_id,
+                    "recipient_name": recipient.name,
+                    "sparks_received": 1
+                })
+                
+                # Log spark transaction
+                self._log_spark_transaction(
+                    from_entity="bond_pool",
+                    to_entity=recipient_id,
+                    amount=1,
+                    transaction_type="bond_distribution",
+                    reason=f"Random distribution within bond {bond.bond_id}"
+                )
+            
+            # Store distribution details for Storyteller
+            self.world_state.spark_distribution_details.append({
+                "bond_id": bond.bond_id,
+                "bond_name": bond_name,
+                "total_sparks_generated": bond.sparks_generated_this_tick,
+                "distribution_details": distribution_details
+            })
+            
+            # Log bond minting
             self._log_spark_transaction(
                 from_entity="bond_pool",
                 to_entity="minting",
@@ -419,7 +467,8 @@ class WorldEngine:
         # Store this tick's minted sparks (for TickResult) and also accumulate to world state
         self.sparks_minted_this_tick = total_minted
         self.world_state.total_sparks_minted += total_minted
-        return f"Applied {total_upkeep} upkeep costs ({vanished_count} vanished), minted {total_minted} sparks from bonds"
+        
+        return f"Applied {total_upkeep} upkeep costs ({vanished_count} vanished), minted and distributed {total_minted} sparks from bonds"
     
     def _stage_2_bob_decides(self) -> str:
         """Stage 2: Bob processes spark requests from previous tick."""
@@ -505,6 +554,11 @@ class WorldEngine:
         agent_actions = []
         for agent_id, packet in observation_packets.items():
             action = self.agent_decision_module.decide_action(agent_id, packet)
+
+            print(f"🔍 DEBUG: Agent {agent_id} decided action: {action}")
+            
+            # Set the tick when this action was created
+            action.tick = self.world_state.tick
             agent_actions.append(action)
         
         # Store actions for processing
@@ -512,6 +566,9 @@ class WorldEngine:
         
         # Store actions for logging (before they get processed and cleared)
         self.world_state.agent_actions_for_logging = agent_actions.copy()
+        
+        # Accumulate all agent actions for history
+        self.world_state.all_agent_actions.extend(agent_actions)
         
         # Store bond requests for display BEFORE processing them
         self.world_state.bond_requests_for_display = {}
@@ -525,49 +582,8 @@ class WorldEngine:
     
     def _stage_4_distribute_sparks(self) -> str:
         """Stage 4: Distribute minted sparks randomly within bonds."""
-        total_distributed = 0
-        
-        for bond in self.world_state.bonds.values():
-            if bond.sparks_generated_this_tick > 0:
-                # Get bond members
-                bond_members = list(bond.members)
-                
-                # Track distribution details for Storyteller
-                distribution_details = []
-                bond_name = f"Bond {bond.bond_id}"
-                
-                # Distribute sparks one by one randomly
-                for _ in range(bond.sparks_generated_this_tick):
-                    recipient_id = random.choice(bond_members)
-                    recipient = self.world_state.agents[recipient_id]
-                    recipient.sparks += 1
-                    total_distributed += 1
-                    
-                    # Track individual distribution
-                    distribution_details.append({
-                        "recipient_id": recipient_id,
-                        "recipient_name": recipient.name,
-                        "sparks_received": 1
-                    })
-                    
-                    # Log spark transaction
-                    self._log_spark_transaction(
-                        from_entity="bond_pool",
-                        to_entity=recipient_id,
-                        amount=1,
-                        transaction_type="bond_distribution",
-                        reason=f"Random distribution within bond {bond.bond_id}"
-                    )
-                
-                # Store distribution details for Storyteller
-                self.world_state.spark_distribution_details.append({
-                    "bond_id": bond.bond_id,
-                    "bond_name": bond_name,
-                    "total_sparks_generated": bond.sparks_generated_this_tick,
-                    "distribution_details": distribution_details
-                })
-        
-        return f"Distributed {total_distributed} sparks randomly within bonds"
+        # This stage is now handled in Stage 1 (mint_and_distribute_sparks)
+        return "Spark distribution moved to Stage 1"
     
     def _stage_5_upkeep_and_vanishings(self) -> str:
         """Stage 5: Process pending actions and handle any remaining vanishings."""
@@ -694,6 +710,7 @@ class WorldEngine:
     
     def _generate_observation_packets(self) -> Dict[str, ObservationPacket]:
         """Generate observation packets for all agents."""
+        
         packets = {}
         
         for agent_id, agent in self.world_state.agents.items():
@@ -727,13 +744,22 @@ class WorldEngine:
                 mission_status = self._get_mission_status(agent_id)
                 
                 # Create observation packet
-                # Include pending bond requests in the inbox
-                inbox = self.world_state.message_queue.get(agent_id, [])
+                # Use previous tick's bond requests and message queue for inbox to ensure consistency
+                # This ensures the inbox matches what was actually processed and stored
+                inbox = self._get_inbox_from_previous_tick(agent_id)
                 
-                # Add any pending bond requests for this agent
-                if agent_id in self.world_state.pending_bond_requests:
-                    bond_request = self.world_state.pending_bond_requests[agent_id]
-                    inbox.append(bond_request)
+                # Get previous tick context (MOST IMPORTANT for decision making)
+                # Note: inbox now uses pending_bond_requests and message_queue for consistency
+                previous_tick_events = self._get_previous_tick_events(agent_id)
+                previous_tick_actions_targeting_me = self._get_previous_tick_actions_targeting_agent(agent_id)
+                previous_tick_my_actions = self._get_previous_tick_agent_actions(agent_id)
+                previous_tick_bond_requests = self._get_previous_tick_bond_requests(agent_id)
+                previous_tick_messages = self._get_previous_tick_messages(agent_id)
+                previous_tick_raids = self._get_previous_tick_raids(agent_id)
+                
+                # Get full history (for reasoning and context)
+                my_action_history = self.get_agent_action_history(agent_id)
+                actions_targeting_me = self._get_actions_targeting_agent(agent_id)
                 
                 packet = ObservationPacket(
                     tick=self.world_state.tick,
@@ -742,7 +768,19 @@ class WorldEngine:
                     inbox=inbox,
                     world_news=world_news,
                     mission_status=mission_status,
-                    available_actions=["bond", "raid", "request_spark", "spawn", "message"]
+                    available_actions=["bond", "raid", "request_spark", "spawn", "message"],
+                    
+                    # Previous tick context (for immediate decision making)
+                    previous_tick_events=previous_tick_events,
+                    previous_tick_actions_targeting_me=previous_tick_actions_targeting_me,
+                    previous_tick_my_actions=previous_tick_my_actions,
+                    previous_tick_bond_requests=previous_tick_bond_requests,
+                    previous_tick_messages=previous_tick_messages,
+                    previous_tick_raids=previous_tick_raids,
+                    
+                    # Full history (for reasoning and context)
+                    my_action_history=my_action_history,
+                    actions_targeting_me=actions_targeting_me
                 )
                 
                 packets[agent_id] = packet
@@ -751,9 +789,25 @@ class WorldEngine:
     
     def _get_agent_events(self, agent_id: str) -> List[Event]:
         """Get events that happened to a specific agent since last tick."""
-        # This would be populated based on what happened to the agent
-        # For now, return empty list
-        return []
+        events = []
+        
+        # Check if this agent received sparks from bond distribution
+        for distribution in self.world_state.spark_distribution_details:
+            for detail in distribution['distribution_details']:
+                if detail['recipient_id'] == agent_id:
+                    events.append(Event(
+                        event_type="spark_gained",
+                        description=f"Received {detail['sparks_received']} spark(s) from bond distribution",
+                        spark_change=detail['sparks_received'],
+                        source_agent=None,  # From bond system, not a specific agent
+                        additional_data={
+                            "bond_id": distribution['bond_id'],
+                            "bond_name": distribution['bond_name'],
+                            "reason": "bond_distribution"
+                        }
+                    ))
+        
+        return events
     
     def _create_world_news(self) -> WorldNews:
         """Create world news for all agents."""
@@ -859,20 +913,21 @@ class WorldEngine:
         """Process pending bond requests and form bonds."""
         # First, collect all bond requests by target
         bond_requests_by_target = {}
-        for target_id, request in self.world_state.pending_bond_requests.items():
-            requester_id = request.agent_id
-            
-            # Check if both agents are still alive and unbonded
-            if (requester_id in self.world_state.agents and 
-                target_id in self.world_state.agents and
-                self.world_state.agents[requester_id].status == AgentStatus.ALIVE and
-                self.world_state.agents[target_id].status == AgentStatus.ALIVE and
-                self.world_state.agents[requester_id].bond_status == BondStatus.UNBONDED and
-                self.world_state.agents[target_id].bond_status == BondStatus.UNBONDED):
+        for target_id, requests in self.world_state.pending_bond_requests.items():
+            for request in requests:
+                requester_id = request.agent_id
                 
-                if target_id not in bond_requests_by_target:
-                    bond_requests_by_target[target_id] = []
-                bond_requests_by_target[target_id].append(requester_id)
+                # Check if both agents are still alive and unbonded
+                if (requester_id in self.world_state.agents and 
+                    target_id in self.world_state.agents and
+                    self.world_state.agents[requester_id].status == AgentStatus.ALIVE and
+                    self.world_state.agents[target_id].status == AgentStatus.ALIVE and
+                    self.world_state.agents[requester_id].bond_status == BondStatus.UNBONDED and
+                    self.world_state.agents[target_id].bond_status == BondStatus.UNBONDED):
+                    
+                    if target_id not in bond_requests_by_target:
+                        bond_requests_by_target[target_id] = []
+                    bond_requests_by_target[target_id].append(requester_id)
         
         # Process bond requests to form fully-connected cliques
         processed_agents = set()
@@ -904,7 +959,7 @@ class WorldEngine:
                 self._form_bond_clique(list(clique_members))
         
         # Clear processed bond requests
-        self.world_state.pending_bond_requests.clear()
+        # self.world_state.pending_bond_requests.clear()
     
     def _form_bond_clique(self, agent_ids: List[str]):
         """Form a bond between multiple agents (fully-connected clique)."""
@@ -1025,7 +1080,9 @@ class WorldEngine:
             self.world_state.agents[target_id].bond_status == BondStatus.UNBONDED):  # Only target must be unbonded
             
             # Store the bond request for the target to respond to
-            self.world_state.pending_bond_requests[target_id] = action
+            if target_id not in self.world_state.pending_bond_requests:
+                self.world_state.pending_bond_requests[target_id] = []
+            self.world_state.pending_bond_requests[target_id].append(action)
             
             # Log bond request event
             self._log_event(
@@ -1205,7 +1262,7 @@ class WorldEngine:
             # Check if this is a reply to a bond request (bond acceptance)
             # If the target agent has a pending bond request from this agent, form the bond
             if (target_id in self.world_state.pending_bond_requests and 
-                self.world_state.pending_bond_requests[target_id].agent_id == action.agent_id):
+                any(req.agent_id == action.agent_id for req in self.world_state.pending_bond_requests[target_id])):
                 
                 # This is a bond acceptance - form the bond immediately
                 requester_id = action.agent_id
@@ -1221,8 +1278,11 @@ class WorldEngine:
                     # Form the bond
                     self._form_bond_clique([requester_id, target_id])
                     
-                    # Remove the processed bond request
-                    del self.world_state.pending_bond_requests[target_id]
+                    # Remove the specific bond request that was accepted
+                    for i, req in enumerate(self.world_state.pending_bond_requests[target_id]):
+                        if req.agent_id == requester_id:
+                            del self.world_state.pending_bond_requests[target_id][i]
+                            break
     
     def _handle_agent_vanishing(self, agent_id: str):
         """Handle an agent vanishing (sparks <= 0)."""
@@ -1728,3 +1788,113 @@ class WorldEngine:
             total_agents_vanished=len(self.world_state.agents_vanished_this_tick),
             total_agents_spawned=len(self.world_state.agents_spawned_this_tick)
         ) 
+
+    def get_actions_from_tick(self, tick_number: int) -> List[ActionMessage]:
+        return [action for action in self.world_state.all_agent_actions if action.tick == tick_number] 
+
+    def get_agent_action_history(self, agent_id: str) -> List[ActionMessage]:
+        """Get all actions taken by this agent."""
+        return [action for action in self.world_state.all_agent_actions if action.agent_id == agent_id]
+
+    def _get_previous_tick_events(self, agent_id: str) -> List[Event]:
+        """Get events from previous tick that affected this agent."""
+        previous_tick = self.world_state.tick - 1
+        events = []
+        
+        # Get actions from previous tick that affected this agent
+        previous_tick_actions = [action for action in self.world_state.all_agent_actions 
+                                if action.tick == previous_tick]
+        
+        for action in previous_tick_actions:
+            if action.target == agent_id:
+                if action.intent == "raid":
+                    events.append(Event(
+                        event_type="raid_attack",
+                        description=f"Was raided by {action.agent_id}",
+                        spark_change=0,  # Will be calculated by raid logic
+                        source_agent=action.agent_id,
+                        additional_data={"raid_action": action}
+                    ))
+                elif action.intent == "bond":
+                    events.append(Event(
+                        event_type="bond_request_received",
+                        description=f"Received bond request from {action.agent_id}",
+                        spark_change=0,
+                        source_agent=action.agent_id,
+                        additional_data={"bond_request": action}
+                    ))
+                elif action.intent == "message":
+                    events.append(Event(
+                        event_type="message_received",
+                        description=f"Received message from {action.agent_id}",
+                        spark_change=0,
+                        source_agent=action.agent_id,
+                        additional_data={"message": action}
+                    ))
+        
+        # Add events for actions this agent took in previous tick
+        for action in previous_tick_actions:
+            if action.agent_id == agent_id:
+                if action.intent == "raid":
+                    events.append(Event(
+                        event_type="raid_executed",
+                        description=f"Raided {action.target}",
+                        spark_change=0,  # Will be calculated by raid logic
+                        source_agent=agent_id,
+                        additional_data={"raid_action": action}
+                    ))
+                elif action.intent == "request_spark":
+                    events.append(Event(
+                        event_type="spark_requested",
+                        description=f"Requested sparks from Bob",
+                        spark_change=0,
+                        source_agent=agent_id,
+                        additional_data={"spark_request": action}
+                    ))
+        
+        return events
+
+    def _get_previous_tick_actions_targeting_agent(self, agent_id: str) -> List[ActionMessage]:
+        """Get actions from previous tick where this agent was the target."""
+        previous_tick = self.world_state.tick - 1
+        return [action for action in self.world_state.all_agent_actions 
+                if action.tick == previous_tick and action.target == agent_id]
+
+    def _get_previous_tick_agent_actions(self, agent_id: str) -> List[ActionMessage]:
+        """Get actions this agent took in previous tick."""
+        previous_tick = self.world_state.tick - 1
+        return [action for action in self.world_state.all_agent_actions 
+                if action.tick == previous_tick and action.agent_id == agent_id]
+
+    def _get_previous_tick_bond_requests(self, agent_id: str) -> List[ActionMessage]:
+        """Get bond requests this agent received in previous tick."""
+        previous_tick = self.world_state.tick - 1
+        return [action for action in self.world_state.all_agent_actions 
+                if action.tick == previous_tick and action.target == agent_id and action.intent == "bond"]
+
+    def _get_previous_tick_messages(self, agent_id: str) -> List[ActionMessage]:
+        """Get messages this agent received in previous tick."""
+        previous_tick = self.world_state.tick - 1
+        return [action for action in self.world_state.all_agent_actions 
+                if action.tick == previous_tick and action.target == agent_id and action.intent == "message"]
+
+    def _get_previous_tick_raids(self, agent_id: str) -> List[ActionMessage]:
+        """Get raids involving this agent in previous tick (as attacker or defender)."""
+        previous_tick = self.world_state.tick - 1
+        return [action for action in self.world_state.all_agent_actions 
+                if action.tick == previous_tick and 
+                action.intent == "raid" and 
+                (action.agent_id == agent_id or action.target == agent_id)]
+
+    def _get_actions_targeting_agent(self, agent_id: str) -> List[ActionMessage]:
+        """Get all actions where this agent was the target (full history)."""
+        return [action for action in self.world_state.all_agent_actions if action.target == agent_id]
+    
+    def _get_inbox_from_previous_tick(self, agent_id: str) -> List[ActionMessage]:
+        """Get inbox messages from previous tick's bond requests and message queue for this agent."""
+        inbox = []
+        if agent_id in self.world_state.previous_tick_bond_requests:
+            inbox.extend(self.world_state.previous_tick_bond_requests[agent_id])
+        if agent_id in self.world_state.previous_tick_message_queue:
+            inbox.extend(self.world_state.previous_tick_message_queue[agent_id])
+        return inbox

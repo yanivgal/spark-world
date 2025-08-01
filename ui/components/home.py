@@ -215,8 +215,6 @@ def display_home_event(event, world_state):
         display_mission_event(event['data'], world_state)
     elif event['type'] == 'bob':
         display_bob_event(event['data'])
-    elif event['type'] == 'agent_decision':
-        display_agent_decision_event(event['data'])
     elif event['type'] == 'bond_formation':
         display_bond_formation_event(event['data'])
 
@@ -251,6 +249,18 @@ def display_story_entry(story_entry, world_state):
     # Display observation packets right above "What Happened This Iteration"
     if tick_data and 'observation_packets' in tick_data and tick_data['observation_packets']:
         create_observation_section(tick_data['observation_packets'])
+        
+        st.markdown(
+            """
+            <div style="
+                height: 2px;
+                background: linear-gradient(90deg, transparent, #667eea, transparent);
+                margin: 20px 0;
+                border-radius: 1px;
+            "></div>
+            """,
+            unsafe_allow_html=True
+        )
     
     # Add separator between observation packets and mission meetings
     if tick_data and 'observation_packets' in tick_data and tick_data['observation_packets'] and tick_data.get('mission_meeting_messages'):
@@ -287,8 +297,6 @@ def display_story_entry(story_entry, world_state):
     # Display world status for this tick (home-specific)
     if tick_data:
         display_agent_decisions(tick_data)
-        display_action_consequences(tick_data)
-        display_end_of_tick_summary(tick_data)
     
     create_story_card_footer()
 
@@ -761,5 +769,4 @@ def display_home_page():
         else:
             st.info("📚 No events for the current iteration yet. Run a tick to see what happens!")
         
-        # Create home analysis tabs
-        create_home_analysis_tabs(world_state) 
+ 

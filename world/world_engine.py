@@ -1375,7 +1375,15 @@ class WorldEngine:
     
     def _log_event(self, simulation_id: int, tick: int, event_type: str, data: Dict):
         """Log an event to the database."""
+        # Log to both instance and world state for consistency
         self.events_this_tick.append({
+            "tick": tick,
+            "event_type": event_type,
+            "data": data
+        })
+        
+        # Also log to world state for observation packets
+        self.world_state.events_this_tick.append({
             "tick": tick,
             "event_type": event_type,
             "data": data

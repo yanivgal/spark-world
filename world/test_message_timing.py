@@ -493,7 +493,8 @@ def test_comprehensive_tick_flow():
         target="agent_001",
         content="Let's form a bond!",
         reasoning="Want to bond",
-        tick=1
+        tick=1,
+        bond_type="request"
     )
     
     print(f"✅ Alice creates message to Bob (tick 1)")
@@ -549,11 +550,12 @@ def test_comprehensive_tick_flow():
     # Alice accepts Bob's bond request
     alice_response = ActionMessage(
         agent_id="agent_001",
-        intent="message",
+        intent="bond",
         target="agent_002",
         content="I accept your bond request!",
         reasoning="Accept bond",
-        tick=2
+        tick=2,
+        bond_type="acceptance"
     )
     
     # Bob responds to Alice's message
@@ -640,7 +642,8 @@ def test_complete_fix():
         target="agent_001",
         content="Let's form a bond!",
         reasoning="Want to bond",
-        tick=1
+        tick=1,
+        bond_type="request"
     )
     
     print(f"✅ Alice creates message to Bob (tick 1)")

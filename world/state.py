@@ -13,6 +13,7 @@ class Bond:
     leader_id: str
     mission_id: Optional[str]  # None if no active mission
     sparks_generated_this_tick: int = 0
+    created_tick: int = 0
 
 
 @dataclass
@@ -112,6 +113,7 @@ class WorldState:
     # --- Added for tick delay ---
     previous_tick_bond_requests: Dict[str, List[ActionMessage]] = field(default_factory=dict)  # For delayed inbox
     previous_tick_message_queue: Dict[str, List[ActionMessage]] = field(default_factory=dict)  # For delayed inbox
+    previous_tick_bonds_formed: List[str] = field(default_factory=list)  # Bonds formed in previous tick for delayed notification
     # --- End added ---
     
     # Event Tracking

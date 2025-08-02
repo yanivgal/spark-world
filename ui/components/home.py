@@ -13,7 +13,7 @@ from ui.components.shared_story import (
     create_story_card_footer
 )
 from ui.components.shared_observation import create_observation_section
-from ui.components.shared_mission_meeting import create_mission_meeting_section
+from ui.components.shared_mission_meeting import create_mission_meeting_section, format_agent_name
 
 
 def create_home_header():
@@ -176,15 +176,6 @@ def create_current_iteration_events():
     # Add current tick's simulation data
     for tick_data in st.session_state.simulation_data:
         if tick_data['tick'] == current_tick:
-            # Add Bob donations
-            if 'bob_responses' in tick_data and tick_data['bob_responses']:
-                for bob_response in tick_data['bob_responses']:
-                    current_events.append({
-                        'type': 'bob',
-                        'tick': current_tick,
-                        'data': bob_response
-                    })
-            
             # Add agent decisions
             if 'agent_decisions' in tick_data and tick_data['agent_decisions']:
                 for decision in tick_data['agent_decisions']:
@@ -211,12 +202,10 @@ def display_home_event(event, world_state):
     """Display a single home event."""
     if event['type'] == 'story':
         display_story_entry(event['data'], world_state)
-    elif event['type'] == 'mission':
-        display_mission_event(event['data'], world_state)
-    elif event['type'] == 'bob':
-        display_bob_event(event['data'])
-    elif event['type'] == 'bond_formation':
-        display_bond_formation_event(event['data'])
+    # elif event['type'] == 'mission':
+    #     display_mission_event(event['data'], world_state)
+    # elif event['type'] == 'bond_formation':
+    #     display_bond_formation_event(event['data'])
 
 
 def display_story_entry(story_entry, world_state):
@@ -294,9 +283,27 @@ def display_story_entry(story_entry, world_state):
             unsafe_allow_html=True
         )
     
-    # Display world status for this tick (home-specific)
+    # Display agent decisions
     if tick_data:
         display_agent_decisions(tick_data)
+    
+    # Add separator between agent decisions and post-tick events
+    if tick_data and (tick_data.get('bob_responses') or tick_data.get('raid_events')):
+        st.markdown(
+            """
+            <div style="
+                height: 2px;
+                background: linear-gradient(90deg, transparent, #667eea, transparent);
+                margin: 20px 0;
+                border-radius: 1px;
+            "></div>
+            """,
+            unsafe_allow_html=True
+        )
+    
+    # Display post-tick events (Bob's decisions, raids, etc.)
+    if tick_data:
+        display_post_tick_events(tick_data)
     
     create_story_card_footer()
 
@@ -346,6 +353,7 @@ def display_agent_decisions(tick_data):
     """Display agent decisions for a tick."""
     if tick_data['agent_decisions']:
         st.markdown("### 🧠 Agent Decisions")
+        st.markdown("*Agents process their observations and make choices about their next actions...*")
         
         for decision in tick_data['agent_decisions']:
             # Define color gradients for different action types
@@ -380,8 +388,13 @@ def display_agent_decisions(tick_data):
             icon = "🧠"
             header = f"{decision['agent_name']}"
             if decision['intent'] == 'bond':
-                icon = "💌"
-                header = f"{decision['agent_name']} → {target_name}"
+                bond_type = decision.get('bond_type', 'request')  # Default to request for backward compatibility
+                if bond_type == 'acceptance':
+                    icon = "✅"
+                    header = f"{decision['agent_name']} → {target_name} (Accept)"
+                else:
+                    icon = "💌"
+                    header = f"{decision['agent_name']} → {target_name} (Request)"
             elif decision['intent'] == 'message':
                 icon = "💬"
                 if target_name:
@@ -443,17 +456,77 @@ def display_agent_decisions(tick_data):
             st.markdown(card_content, unsafe_allow_html=True)
 
 
+def display_post_tick_events(tick_data):
+    """Display post-tick events including Bob's decisions, raids, bond formations, and other world events."""
+    current_tick = tick_data['tick']
+    
+    # Filter Bob's responses for this specific tick
+    bob_responses_this_tick = []
+    if tick_data.get('bob_responses'):
+        for bob_response in tick_data['bob_responses']:
+            if bob_response.tick == current_tick:
+                bob_responses_this_tick.append(bob_response)
+    
+    # Filter bond formations for this specific tick
+    bond_formations_this_tick = []
+    if tick_data.get('bond_formations'):
+        for formation in tick_data['bond_formations']:
+            if formation.get('tick', current_tick) == current_tick:
+                bond_formations_this_tick.append(formation)
+    
+    has_bob_responses = len(bob_responses_this_tick) > 0
+    has_raid_events = tick_data.get('raid_events') and len(tick_data['raid_events']) > 0
+    has_bond_formations = len(bond_formations_this_tick) > 0
+    
+    if has_bob_responses or has_raid_events or has_bond_formations:
+        st.markdown("### 🌊 The Tides of Fate")
+        st.markdown("*As the dust settles, the currents of destiny reveal their course...*")
+        
+        # Display Bob's decisions
+        if has_bob_responses:
+            for bob_response in bob_responses_this_tick:
+                display_bob_event(bob_response, None)  # world_state not needed for Bob display
+        
+        # Display bond formations with mission information
+        if has_bond_formations:
+            for formation in bond_formations_this_tick:
+                display_comprehensive_bond_formation(formation)
+        
+        # Display raid events (placeholder for future implementation)
+        if has_raid_events:
+            for raid_event in tick_data['raid_events']:
+                display_raid_event(raid_event)
+
+
+def display_raid_event(raid_event):
+    """Display a raid event."""
+    # Placeholder for raid event display - can be expanded later
+    st.markdown(
+        f"""
+        <div style="
+            background: linear-gradient(135deg, #FF6B6B 0%, #EE5A52 100%);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            color: white;
+            box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3);
+        ">
+            <div style="display: flex; align-items: center; margin-bottom: 8px;">
+                <span style="font-size: 1.2rem; margin-right: 8px;">⚔️</span>
+                <strong style="font-size: 1rem;">Raid Event</strong>
+                <span style="margin-left: auto; font-size: 1.0rem;">Tick {raid_event.get('tick', 'Unknown')}</span>
+            </div>
+            <p style="font-style: italic; margin-bottom: 8px; font-size: 0.9rem;">{raid_event.get('description', 'A raid occurred')}</p>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+
 def display_action_consequences(tick_data):
     """Display action consequences for a tick."""
     st.markdown("### ⚡ Action Consequences")
     st.markdown("   ───────────────────────────────────────────────────────────")
-    
-    # Bond formations
-    if tick_data['bond_formations']:
-        st.markdown("**🤝 BONDS FORMED**")
-        for formation in tick_data['bond_formations']:
-            member_names = ", ".join(formation['member_names'])
-            st.markdown(f"   {member_names} formed a bond!")
     
     # Bond requests
     if tick_data['bond_requests']:
@@ -546,7 +619,18 @@ def display_mission_event(mission, world_state):
     )
 
 
-def display_bob_event(bob_response):
+def format_agent_name_for_bob(agent_id: str) -> str:
+    """Format agent name for Bob display."""
+    if hasattr(st.session_state, 'engine') and st.session_state.engine:
+        world_state = st.session_state.engine.world_state
+        if agent_id in world_state.agents:
+            return world_state.agents[agent_id].name
+        elif agent_id == "bob":
+            return "Bob"
+    return agent_id
+
+
+def display_bob_event(bob_response, world_state):
     """Display a Bob interaction event."""
     # Bob interaction container with golden theme
     if bob_response.sparks_granted > 0:
@@ -562,25 +646,39 @@ def display_bob_event(bob_response):
         f"""
         <div style="
             background: linear-gradient(135deg, #FFD700 0%, #FFA500 50%, #FF8C00 100%);
-            padding: 15px;
-            border-radius: 10px;
+            padding: 5px;
+            border-radius: 16px;
             margin-bottom: 15px;
-            color: #2C1810;
-            box-shadow: 0 2px 8px rgba(255, 215, 0, 0.3);
-            border-left: 4px solid {status_color};
+            box-shadow: 0 4px 8px rgba(255, 215, 0, 0.3);
+            display: flex;
         ">
-            <div style="display: flex; align-items: center; margin-bottom: 8px;">
-                <span style="font-size: 1.2rem; margin-right: 8px;">{status_emoji}</span>
-                <strong style="font-size: 1rem; color: #2C1810;">🎭 Bob's Decision</strong>
-                <span style="margin-left: auto; font-size: 1.0rem; color: #2C1810;">Tick {bob_response.tick}</span>
+            <div style="
+                background: rgba(255,255,255,0.95);
+                border-radius: 12px;
+                padding: 15px 18px;
+                width: 100%;
+                color: #2C1810;
+                box-sizing: border-box;
+                display: flex;
+                flex-direction: column;
+            ">
+                <div style="display: flex; align-items: center; margin-bottom: 8px;">
+                    <span style="font-size: 1.2rem; margin-right: 8px;">{status_emoji}</span>
+                    <strong style="font-size: 1rem; color: #2C1810;">Bob → 👤 {format_agent_name_for_bob(bob_response.requesting_agent_id)}</strong>
+                    <span style="margin-left: auto; font-size: 1.0rem; color: #2C1810;">Tick {bob_response.tick}</span>
+                </div>
+                <div style="font-style: italic; margin-bottom: 8px; font-size: 0.8rem; color: #2C1810; opacity: 0.8; padding-left: 10px; border-left: 4px solid rgba(44, 24, 16, 0.3);">
+                    "{bob_response.request_content}"
+                </div>
+                <div style="font-size: 1.0rem; margin-bottom: 8px; color: #2C1810; opacity: 0.9; font-weight: bold;">
+                    "{bob_response.reasoning}"
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 1.0rem; color: #2C1810; margin-top: 8px; padding-top: 8px; border-top: 2px solid rgba(44, 24, 16, 0.2);">
+                    <span>👤 {format_agent_name_for_bob(bob_response.requesting_agent_id)}</span>
+                    <span>⚡ {bob_response.sparks_granted} sparks</span>
+                    <span>{status_text}</span>
+                </div>
             </div>
-            <p style="font-style: italic; margin-bottom: 8px; font-size: 0.9rem; color: #2C1810;">{bob_response.request_content}</p>
-            <div style="display: flex; justify-content: space-between; font-size: 1.0rem; color: #2C1810; font-weight: bold;">
-                <span>👤 {bob_response.requesting_agent_id}</span>
-                <span>⚡ {bob_response.sparks_granted} sparks</span>
-                <span>{status_text}</span>
-            </div>
-            <p style="font-size: 1.0rem; margin-top: 8px; color: #2C1810; opacity: 0.9;">"{bob_response.reasoning}"</p>
         </div>
         """,
         unsafe_allow_html=True
@@ -652,6 +750,130 @@ def display_bond_formation_event(formation):
         """,
         unsafe_allow_html=True
     )
+
+
+def display_comprehensive_bond_formation(formation):
+    """Display a comprehensive bond formation with mission information."""
+    # Get mission information if available
+    mission_info = None
+    if hasattr(st.session_state, 'engine') and st.session_state.engine:
+        world_state = st.session_state.engine.world_state
+        bond_id = formation.get('bond_id')
+        if bond_id and bond_id in world_state.bonds:
+            bond = world_state.bonds[bond_id]
+            if bond.mission_id and bond.mission_id in world_state.missions:
+                mission = world_state.missions[bond.mission_id]
+                mission_info = {
+                    'title': mission.title,
+                    'goal': mission.goal,
+                    'description': mission.description
+                }
+    
+    # Create the bond formation card with gradient border
+    if mission_info:
+        st.markdown(
+            f"""
+            <div style="
+                background: linear-gradient(135deg, #8B5CF6 0%, #A855F7 50%, #C084FC 100%);
+                padding: 3px;
+                border-radius: 16px;
+                margin-bottom: 15px;
+                box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+            ">
+                <div style="
+                    background: rgba(0, 0, 0, 0.95);
+                    border-radius: 13px;
+                    padding: 15px 18px;
+                    width: 100%;
+                    color: white;
+                    box-sizing: border-box;
+                ">
+                    <div style="display: flex; align-items: center; margin-bottom: 8px;">
+                        <span style="font-size: 1.2rem; margin-right: 8px;">🤝</span>
+                        <strong style="font-size: 1rem; color: white;">New Bond Forged</strong>
+                        <span style="margin-left: auto; font-size: 1.0rem; color: white; opacity: 0.9;">Tick {formation.get('tick', 'Unknown')}</span>
+                    </div>
+                    <div style="font-size: 1.0rem; margin-bottom: 8px; color: white;">
+                        🤝 {', '.join(formation['member_names'])} have united!
+                    </div>
+                    <div style="font-size: 1.0rem; margin-bottom: 8px; color: white; opacity: 0.9;">
+                        👑 <strong>Leader:</strong> {formation['leader_name']}
+                    </div>
+                    <div style="font-size: 1.0rem; margin-bottom: 8px; color: white; opacity: 0.9;">
+                        ⚡ <strong>Sparks Generated:</strong> {formation['sparks_generated']}
+                    </div>
+                    <div style="
+                        border-top: 2px solid rgba(255, 255, 255, 0.2);
+                        padding-top: 8px;
+                        margin-top: 8px;
+                    ">
+                        <div style="font-size: 1.0rem; margin-bottom: 5px; color: #FFD700; font-weight: bold;">
+                            🎯 Mission Assigned
+                        </div>
+                        <div style="font-size: 0.9rem; margin-bottom: 5px; color: white; font-weight: bold;">
+                            {mission_info['title']}
+                        </div>
+                        <div style="font-size: 0.8rem; margin-bottom: 5px; color: white; opacity: 0.9;">
+                            {mission_info['description']}
+                        </div>
+                        <div style="font-size: 0.8rem; color: white; opacity: 0.8; font-style: italic;">
+                            <strong>Goal:</strong> {mission_info['goal']}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+    else:
+        st.markdown(
+            f"""
+            <div style="
+                background: linear-gradient(135deg, #8B5CF6 0%, #A855F7 50%, #C084FC 100%);
+                padding: 3px;
+                border-radius: 16px;
+                margin-bottom: 15px;
+                box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+            ">
+                <div style="
+                    background: rgba(0, 0, 0, 0.95);
+                    border-radius: 13px;
+                    padding: 15px 18px;
+                    width: 100%;
+                    color: white;
+                    box-sizing: border-box;
+                ">
+                    <div style="display: flex; align-items: center; margin-bottom: 8px;">
+                        <span style="font-size: 1.2rem; margin-right: 8px;">🤝</span>
+                        <strong style="font-size: 1rem; color: white;">New Bond Forged</strong>
+                        <span style="margin-left: auto; font-size: 1.0rem; color: white; opacity: 0.9;">Tick {formation.get('tick', 'Unknown')}</span>
+                    </div>
+                    <div style="font-size: 1.0rem; margin-bottom: 8px; color: white;">
+                        🤝 {', '.join(formation['member_names'])} have united!
+                    </div>
+                    <div style="font-size: 1.0rem; margin-bottom: 8px; color: white; opacity: 0.9;">
+                        👑 <strong>Leader:</strong> {formation['leader_name']}
+                    </div>
+                    <div style="font-size: 1.0rem; margin-bottom: 8px; color: white; opacity: 0.9;">
+                        ⚡ <strong>Sparks Generated:</strong> {formation['sparks_generated']}
+                    </div>
+                    <div style="
+                        border-top: 2px solid rgba(255, 255, 255, 0.2);
+                        padding-top: 8px;
+                        margin-top: 8px;
+                    ">
+                        <div style="font-size: 1.0rem; margin-bottom: 5px; color: #10B981; font-weight: bold;">
+                            🌟 Bond Established
+                        </div>
+                        <div style="font-size: 0.8rem; color: white; opacity: 0.9;">
+                            This bond will generate sparks and may receive a mission in the future.
+                        </div>
+                    </div>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 
 
 def create_home_analysis_tabs(world_state):

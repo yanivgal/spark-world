@@ -55,10 +55,12 @@ def format_messages(inbox) -> str:
             sender_id = msg.get('sender_id', 'Unknown')
             content = msg.get('content', '')
             intent = msg.get('intent', '')
+            bond_type = msg.get('bond_type', None)
         else:
             sender_id = msg.sender_id if hasattr(msg, 'sender_id') else "Unknown"
             content = msg.content
             intent = msg.intent if hasattr(msg, 'intent') else 'unknown'
+            bond_type = msg.bond_type if hasattr(msg, 'bond_type') else None
         
         # Try to resolve agent name from sender_id
         sender_name = "Unknown"
@@ -71,18 +73,23 @@ def format_messages(inbox) -> str:
             else:
                 sender_name = sender_id  # Fallback to ID if name not found
         
-        # Add emoji based on intent
+        # Add emoji based on intent and bond_type
         emoji = "💌"  # Default for bond requests
         if intent == "message":
             emoji = "💬"
         elif intent == "bond":
-            emoji = "💌"
+            if bond_type == "acceptance":
+                emoji = "✅"  # Checkmark for bond acceptance
+            else:
+                emoji = "💌"  # Heart for bond request
         elif intent == "raid":
             emoji = "⚔️"
         elif intent == "spawn":
             emoji = "🌟"
         elif intent == "request_spark":
             emoji = "⚡"
+        elif intent == "bob_response":
+            emoji = "🎁"  # Gift for Bob's response
         
         # Show full message text with emoji
         message_parts.append(f"{emoji} {sender_name}: \"{content}\"")

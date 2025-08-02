@@ -43,7 +43,7 @@ def create_game_header():
                 margin-bottom: 0;
                 text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
             ">
-                Where magic flows like water and every creature tells a story
+                Where AI agents write their own legends
             </p>
         </div>
         """,

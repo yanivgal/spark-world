@@ -26,9 +26,9 @@ def run_single_tick():
         
         # Capture detailed tick information like the human logger does
         # Use the world engine's tick number (which was just incremented)
-        target_tick = world_state.tick
+        tick_number = world_state.tick
         tick_details = {
-            'tick': target_tick,  # Store the world engine's tick number
+            'tick': tick_number,  # Store the world engine's tick number
             'timestamp': datetime.now(),
             'living_agents': len([a for a in world_state.agents.values() if a.status.value == 'alive']),
             'total_sparks': sum(a.sparks for a in world_state.agents.values() if a.status.value == 'alive'),
@@ -95,7 +95,8 @@ def run_single_tick():
                         'member_names': member_names,
                         'leader_id': bond.leader_id,
                         'leader_name': world_state.agents[bond.leader_id].name,
-                        'sparks_generated': bond.sparks_generated_this_tick
+                        'sparks_generated': bond.sparks_generated_this_tick,
+                        'tick': tick_number  # Add tick information for filtering
                     })
         
         # Capture bond dissolutions
@@ -115,7 +116,8 @@ def run_single_tick():
                     'intent': action.intent,
                     'target': action.target,
                     'content': action.content,
-                    'reasoning': action.reasoning
+                    'reasoning': action.reasoning,
+                    'bond_type': action.bond_type if hasattr(action, 'bond_type') else None
                 }
                 tick_details['agent_decisions'].append(decision)
         
@@ -129,7 +131,8 @@ def run_single_tick():
                     'intent': action.intent,
                     'target': action.target,
                     'content': action.content,
-                    'reasoning': action.reasoning
+                    'reasoning': action.reasoning,
+                    'bond_type': action.bond_type if hasattr(action, 'bond_type') else None
                 }
                 # Avoid duplicates
                 if decision not in tick_details['agent_decisions']:
@@ -142,7 +145,10 @@ def run_single_tick():
         
         # Capture observation packets for UI display
         if hasattr(result, 'observation_packets') and result.observation_packets:
+            print(f"🔍 UI DEBUG: Processing {len(result.observation_packets)} observation packets")
             for agent_id, packet in result.observation_packets.items():
+                print(f"🔍 UI DEBUG: Processing packet for {agent_id}, bond_status: {packet.self_state.bond_status.value}")
+                print(f"🔍 UI DEBUG: mission_status type: {type(packet.mission_status)}, value: {packet.mission_status}")
                 
                 # Convert ObservationPacket to LLM-friendly serializable format
                 tick_details['observation_packets'][agent_id] = {
@@ -163,7 +169,8 @@ def run_single_tick():
                             {
                                 'sender_id': msg.agent_id if hasattr(msg, 'agent_id') else 'Unknown',
                                 'content': msg.content,
-                                'intent': msg.intent
+                                'intent': msg.intent,
+                                'bond_type': msg.bond_type if hasattr(msg, 'bond_type') else None
                             } for msg in packet.inbox
                         ],
                         'events_this_tick': [
@@ -183,6 +190,7 @@ def run_single_tick():
                                 'agent_id': action.agent_id,
                                 'content': action.content,
                                 'intent': action.intent,
+                                'bond_type': action.bond_type if hasattr(action, 'bond_type') else None,
                                 'tick': action.tick
                             } for action in packet.previous_tick_actions_targeting_me
                         ],
@@ -214,13 +222,13 @@ def run_single_tick():
                     },
                     
                     # Mission context - mission information for bonded agents
-                    'mission_context': {
+                    'mission_context': None if packet.mission_status is None else {
                         'mission_id': packet.mission_status.mission_id,
                         'mission_title': packet.mission_status.mission_title,
                         'mission_goal': packet.mission_status.mission_goal,
                         'current_progress': packet.mission_status.current_progress,
                         'mission_complete': packet.mission_status.mission_complete
-                    } if packet.mission_status else None,
+                    },
                     
                     # Historical context - patterns and relationships over time
                     'historical_context': {
@@ -238,11 +246,13 @@ def run_single_tick():
                                 'tick': action.tick,
                                 'agent_id': action.agent_id,
                                 'intent': action.intent,
-                                'content': action.content
+                                'content': action.content,
+                                'bond_type': action.bond_type if hasattr(action, 'bond_type') else None
                             } for action in packet.actions_targeting_me
                         ]
                     }
                 }
+                print(f"🔍 UI DEBUG: Successfully processed packet for {agent_id}")
                 
         # Capture mission meeting messages for UI display
         if hasattr(world_state, 'mission_meeting_messages') and world_state.mission_meeting_messages:
@@ -262,12 +272,16 @@ def run_single_tick():
             tick_details['mission_meeting_messages'] = []
         
         # Store tick data
+        print(f"🔍 UI DEBUG: About to store tick data for tick {tick_number}")
+        print(f"🔍 UI DEBUG: tick_details keys: {list(tick_details.keys())}")
+        print(f"🔍 UI DEBUG: observation_packets keys: {list(tick_details['observation_packets'].keys())}")
         st.session_state.simulation_data.append(tick_details)
+        print(f"🔍 UI DEBUG: Successfully stored tick data")
         
         # Store storyteller history
         if storyteller_output:
             story_entry = {
-                'tick': target_tick,  # Store the world engine's tick number
+                'tick': tick_number,  # Store the world engine's tick number
                 'chapter_title': getattr(storyteller_output, 'chapter_title', 'Unknown Chapter'),
                 'narrative_text': getattr(storyteller_output, 'narrative_text', 'No narrative available'),
                 'themes_explored': getattr(storyteller_output, 'themes_explored', []),
@@ -282,6 +296,11 @@ def run_single_tick():
         return result
         
     except Exception as e:
+        import traceback
+        print(f"🔍 UI DEBUG: Error occurred: {e}")
+        print(f"🔍 UI DEBUG: Error type: {type(e)}")
+        print(f"🔍 UI DEBUG: Full traceback:")
+        traceback.print_exc()
         st.error(f"❌ Error running tick: {e}")
         return None
 

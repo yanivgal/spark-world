@@ -144,6 +144,8 @@ class ObservationPacket:
     
     def __post_init__(self):
         """Initialize default values for optional fields."""
+        if self.events_since_last is None:
+            self.events_since_last = []
         if self.previous_tick_events is None:
             self.previous_tick_events = []
         if self.previous_tick_actions_targeting_me is None:

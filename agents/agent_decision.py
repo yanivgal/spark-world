@@ -63,9 +63,10 @@ class AgentDecisionSignature(dspy.Signature):
     
     🚨 BOND REQUEST HANDLING (HIGHEST PRIORITY):
     - FIRST: Check your inbox for bond requests from other agents
+    - Look for messages in your inbox where intent="bond" and bond_type="request" (or bond_type is None for backward compatibility)
     - Bond requests are ONE-TIME OPPORTUNITIES - if you don't respond, you lose the chance forever
-    - If you have bond requests in your inbox, you MUST respond with a MESSAGE action
-    - Accept bond requests by sending a message to the requester saying "I accept your bond request"
+    - If you have bond requests in your inbox, and you wish to bond with the requester, you MUST respond with a BOND action (type: acceptance)
+    - Accept bond requests by sending: bond <requester_id> acceptance
     - This is more important than sending new bond requests
     - Only send new bond requests if you have no pending requests to respond to
     - Bond requests in your inbox take priority over all other actions (except survival)
@@ -73,6 +74,7 @@ class AgentDecisionSignature(dspy.Signature):
     - WARNING: Bond requests expire after one tick - respond immediately or lose the opportunity
     
     🎯 PREVIOUS TICK CONTEXT (CRITICAL FOR DECISION MAKING):
+    - Check immediate_context.inbox for bond requests (intent="bond", bond_type="request" or None)
     - Check previous_tick_context.bond_requests_received for bond requests you received last tick
     - Check previous_tick_context.messages_received for messages you received last tick
     - Check previous_tick_context.raids_involving_me for raids that happened to you last tick
@@ -90,14 +92,15 @@ class AgentDecisionSignature(dspy.Signature):
     - Work together through messaging to plan strategy and assign tasks
     
     BONDING PROCESS (TWO-STEP):
-    - Step 1: Send bond request to another unbonded agent
-    - Step 2: Target agent receives request next tick and can accept/decline
-    - CRITICAL: If you receive a bond request in your inbox, MESSAGE to accept it immediately!
+    - Step 1: Send bond request to another unbonded agent (bond <agent_id> request)
+    - Step 2: Target agent receives request next tick and can accept/decline (bond <requester_id> acceptance)
+    - CRITICAL: If you receive a bond request in your inbox, BOND to accept it immediately!
     - WARNING: Bond requests expire after one tick - respond now or lose the opportunity forever
     - Only bonded agents can spawn new agents (cost: 5 Sparks)
     
     Available actions:
-    - bond <agent_id>: Invite another unbonded agent to form a bond (use agent_id like 'agent_001', not the name)
+    - bond <agent_id> request: Send a bond request to another unbonded agent (use agent_id like 'agent_001', not the name)
+    - bond <agent_id> acceptance: Accept a bond request from another agent (use agent_id like 'agent_001', not the name)
     - raid <agent_id>: Risk 1 Spark to steal 1-5 Sparks from another agent (use agent_id like 'agent_001', not the name)
     - request_spark <reason>: Beg Bob for a donation of 1-5 Sparks (use when desperate!)
     - spawn <partner_id>: Pay 5 Sparks to create a new agent (bond-only, use agent_id like 'agent_001')
@@ -201,7 +204,7 @@ class AgentDecisionSignature(dspy.Signature):
     target: str = dspy.OutputField(desc="ONLY the target agent_id (e.g., 'agent_001', 'agent_002') from public_agent_info - NO comments, NO reasoning, NO extra text - just the agent_id or 'None'")
     content: str = dspy.OutputField(desc="Natural language message for your action - speak like YOUR character")
     reasoning: str = dspy.OutputField(desc="Your private reasoning - think like YOUR character, using your personality, vocabulary, and emotional style")
-
+    bond_type: str = dspy.OutputField(desc="For bond actions: use 'request' when YOU are initiating a new bond, use 'acceptance' when YOU are responding to someone else's bond request")
 
 class AgentDecisionModule:
     """
@@ -244,7 +247,8 @@ class AgentDecisionModule:
             intent=dspy_output.intent,
             target=dspy_output.target if dspy_output.target != "None" else None,
             content=dspy_output.content,
-            reasoning=dspy_output.reasoning
+            reasoning=dspy_output.reasoning,
+            bond_type=dspy_output.bond_type if dspy_output.bond_type != "None" else None
         )
         
         return action_message
@@ -335,6 +339,7 @@ SPEAK AND THINK LIKE YOUR CHARACTER:
                         "agent_id": msg.agent_id if hasattr(msg, 'agent_id') else 'Unknown',
                         "content": msg.content,
                         "intent": msg.intent,
+                        "bond_type": msg.bond_type if hasattr(msg, 'bond_type') else None,
                         "tick": msg.tick
                     } for msg in observation_packet.inbox
                 ],
@@ -355,6 +360,7 @@ SPEAK AND THINK LIKE YOUR CHARACTER:
                         "agent_id": action.agent_id,
                         "content": action.content,
                         "intent": action.intent,
+                        "bond_type": action.bond_type if hasattr(action, 'bond_type') else None,
                         "tick": action.tick
                     } for action in observation_packet.previous_tick_actions_targeting_me
                 ],
@@ -391,7 +397,18 @@ SPEAK AND THINK LIKE YOUR CHARACTER:
             },
             
             # Mission context - mission information for bonded agents
-            "mission_context": observation_packet.mission_status,
+            "mission_context": None if observation_packet.mission_status is None else {
+                "mission_id": observation_packet.mission_status.mission_id,
+                "mission_title": observation_packet.mission_status.mission_title,
+                "mission_description": observation_packet.mission_status.mission_description,
+                "mission_goal": observation_packet.mission_status.mission_goal,
+                "current_progress": observation_packet.mission_status.current_progress,
+                "leader_id": observation_packet.mission_status.leader_id,
+                "assigned_tasks": observation_packet.mission_status.assigned_tasks,
+                "mission_complete": observation_packet.mission_status.mission_complete,
+                "team_members": observation_packet.mission_status.team_members,
+                "recent_messages": observation_packet.mission_status.recent_messages
+            },
             
             # Available actions
             "available_actions": observation_packet.available_actions,
@@ -418,4 +435,7 @@ SPEAK AND THINK LIKE YOUR CHARACTER:
             }
         }
         
-        return json.dumps(packet_dict, indent=2) 
+        print(f"�� AGENT DEBUG: About to serialize packet_dict for agent decision")
+        print(f"🔍 AGENT DEBUG: mission_context type: {type(packet_dict.get('mission_context'))}")
+        print(f"🔍 AGENT DEBUG: mission_context value: {packet_dict.get('mission_context')}")
+        return json.dumps(packet_dict, indent=2)

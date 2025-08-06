@@ -826,6 +826,11 @@ class WorldEngine:
             # Check if this agent formed a bond in the previous tick (for delayed notification)
             print(f"🔍 AGENT EVENTS DEBUG: Checking previous_tick_bonds_formed for {agent_id}: {self.world_state.previous_tick_bonds_formed}")
             for bond_id in self.world_state.previous_tick_bonds_formed:
+                # Add safety check to ensure bond exists
+                if bond_id not in self.world_state.bonds:
+                    print(f"🔍 UI DEBUG: Bond {bond_id} not found in bonds dictionary, skipping...")
+                    continue
+                
                 bond = self.world_state.bonds[bond_id]
                 if bond.created_tick == self.world_state.tick - 1 and agent_id in bond.members:
                     # Get other member's name
